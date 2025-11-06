@@ -17,7 +17,7 @@ public class TestMono : MonoBehaviour
         // 这样就能确保使用与 InputMgr 相同的实例，改键会立即生效
         if (inputActionAsset == null)
         {
-            inputActionAsset = InputMgr.Instance.GetInputActionAsset();
+            inputActionAsset = InputBindingMgr.Instance.GetInputActionAsset();
             if (inputActionAsset == null)
             {
                 Debug.LogError("TestMono: 无法获取 InputActionAsset！请确保 InputMgr 已初始化");

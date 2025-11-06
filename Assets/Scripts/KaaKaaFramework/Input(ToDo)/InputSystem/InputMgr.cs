@@ -9,7 +9,7 @@ using System.Linq;
 /// 通用InputSystem管理器，支持数据驱动的改键系统
 /// 只需定义一个数据结构类，系统自动处理所有改键逻辑
 /// </summary>
-public class InputMgr : BaseManager<InputMgr>
+public class InputBindingMgr : BaseManager<InputBindingMgr>
 {
     private InputActionAsset inputActionAsset;
     
@@ -29,7 +29,7 @@ public class InputMgr : BaseManager<InputMgr>
     private Dictionary<string, (string actionMapName, string actionName, int bindingIndex)> fieldActionMap = new Dictionary<string, (string, string, int)>();
     private Dictionary<string, string> defaultBindings = new Dictionary<string, string>();
     
-    private InputMgr() { }
+    private InputBindingMgr() { }
     
     /// <summary>
     /// 初始化InputActionAsset

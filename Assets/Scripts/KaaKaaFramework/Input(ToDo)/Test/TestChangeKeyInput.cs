@@ -32,9 +32,9 @@ public class TestChangeKeyInput : MonoBehaviour
     void Start()
     {
         // 初始化系统
-        InputMgr.Instance.Init(inputActionAsset);
+        InputBindingMgr.Instance.Init(inputActionAsset);
 
-        if (!InputMgr.Instance.InitBindingData(keyBindings))
+        if (!InputBindingMgr.Instance.InitBindingData(keyBindings))
         {
             Debug.LogError("按键绑定初始化失败！");
             enabled = false;
@@ -42,7 +42,7 @@ public class TestChangeKeyInput : MonoBehaviour
         }
 
         // 加载保存的配置
-        InputMgr.Instance.LoadBindings(keyBindings);
+        InputBindingMgr.Instance.LoadBindings(keyBindings);
 
         // 绑定按钮事件
         if (moveButton != null)
@@ -69,7 +69,7 @@ public class TestChangeKeyInput : MonoBehaviour
         if (statusText != null) 
             statusText.text = $"等待 {fieldName} 的新按键输入 | 按ESC取消";
 
-        InputMgr.Instance.StartRebinding(fieldName, keyBindings, (result) => 
+        InputBindingMgr.Instance.StartRebinding(fieldName, keyBindings, (result) => 
         {
             if (result.Success)
             {
@@ -89,7 +89,7 @@ public class TestChangeKeyInput : MonoBehaviour
 
     void OnResetAll()
     {
-        if (InputMgr.Instance.ResetAllBindings(keyBindings))
+        if (InputBindingMgr.Instance.ResetAllBindings(keyBindings))
         {
             UpdateAllButtonTexts();
             if (statusText != null) 
@@ -100,17 +100,17 @@ public class TestChangeKeyInput : MonoBehaviour
     void UpdateAllButtonTexts()
     {
         if (moveButtonText != null)
-            moveButtonText.text = InputMgr.Instance.GetBindingDisplayString("Move");
+            moveButtonText.text = InputBindingMgr.Instance.GetBindingDisplayString("Move");
         if (fireButtonText != null)
-            fireButtonText.text = InputMgr.Instance.GetBindingDisplayString("Fire");
+            fireButtonText.text = InputBindingMgr.Instance.GetBindingDisplayString("Fire");
         if (lookButtonText != null)
-            lookButtonText.text = InputMgr.Instance.GetBindingDisplayString("Look");
+            lookButtonText.text = InputBindingMgr.Instance.GetBindingDisplayString("Look");
     }
 
     IEnumerator RestoreButtonText(string fieldName, TextMeshProUGUI buttonText)
     {
         yield return new WaitForSeconds(1.5f);
-        buttonText.text = InputMgr.Instance.GetBindingDisplayString(fieldName);
+        buttonText.text = InputBindingMgr.Instance.GetBindingDisplayString(fieldName);
     }
 }
 
