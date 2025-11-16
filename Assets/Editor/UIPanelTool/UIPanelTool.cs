@@ -353,6 +353,12 @@ public class UIPanelTool : EditorWindow
     {
         DrawToolbar();
 
+        // 使用垂直布局，将按钮固定在底部
+        EditorGUILayout.BeginVertical();
+        
+        // 内容区域 - 使用FlexibleSpace将内容推上去
+        EditorGUILayout.BeginVertical(GUILayout.ExpandHeight(true));
+
         switch (currentState)
         {
             case UIToolState.Empty:
@@ -368,6 +374,81 @@ public class UIPanelTool : EditorWindow
                 DrawCodeGeneratedState();
                 break;
         }
+        
+        EditorGUILayout.EndVertical();
+        
+        // 使用FlexibleSpace将按钮推到底部
+        GUILayout.FlexibleSpace();
+        
+        // 统一的底部按钮区域 - 固定在窗口底部
+        DrawBottomActions();
+        
+        EditorGUILayout.EndVertical();
+    }
+
+    /// <summary>
+    /// 绘制分隔线
+    /// </summary>
+    private void DrawSeparator()
+    {
+        Rect rect = EditorGUILayout.GetControlRect(false, 1);
+        rect.height = 1;
+        EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 0.3f));
+    }
+
+    /// <summary>
+    /// 根据控件类型获取颜色
+    /// </summary>
+    private Color GetTypeColor(Type type)
+    {
+        if (type == null) return new Color(0.7f, 0.7f, 0.7f); // GameObject - 浅灰色
+        
+        string typeName = type.Name;
+        switch (typeName)
+        {
+            case "Button":
+                return new Color(0.2f, 0.6f, 1f); // 蓝色
+            case "Toggle":
+                return new Color(0.2f, 0.8f, 0.4f); // 绿色
+            case "Slider":
+                return new Color(1f, 0.6f, 0.2f); // 橙色
+            case "InputField":
+            case "TMP_InputField":
+                return new Color(0.8f, 0.4f, 1f); // 紫色
+            case "ScrollRect":
+                return new Color(0.4f, 0.8f, 1f); // 浅蓝色
+            case "Dropdown":
+            case "TMP_Dropdown":
+                return new Color(1f, 0.8f, 0.2f); // 黄色
+            case "Text":
+            case "TextMeshProUGUI":
+                return new Color(0.6f, 0.6f, 0.6f); // 灰色
+            case "Image":
+            case "RawImage":
+                return new Color(0.5f, 0.5f, 0.5f); // 深灰色
+            default:
+                return new Color(0.7f, 0.7f, 0.7f); // 默认浅灰色
+        }
+    }
+
+    /// <summary>
+    /// 绘制带颜色的类型标签
+    /// </summary>
+    private void DrawTypeLabel(Rect rect, string typeName, Type type)
+    {
+        Color originalColor = GUI.color;
+        Color typeColor = GetTypeColor(type);
+        
+        // 使用稍微深一点的颜色作为文字颜色，确保可读性
+        Color textColor = Color.Lerp(typeColor, Color.white, 0.3f);
+        if (EditorGUIUtility.isProSkin)
+        {
+            textColor = Color.Lerp(typeColor, Color.white, 0.5f);
+        }
+        
+        GUI.color = textColor;
+        EditorGUI.LabelField(rect, typeName);
+        GUI.color = originalColor;
     }
 
     /// <summary>
@@ -377,19 +458,20 @@ public class UIPanelTool : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         
-        if (GUILayout.Button("重置", EditorStyles.toolbarButton))
-        {
-            ResetTool();
-        }
-
-        EditorGUILayout.Space();
-
+        // 目标对象标签
         if (targetGameObject != null)
         {
             EditorGUILayout.LabelField($"目标对象: {targetGameObject.name}", EditorStyles.toolbarButton);
         }
+        else
+        {
+            EditorGUILayout.LabelField("目标对象: 未选择", EditorStyles.toolbarButton);
+        }
 
         EditorGUILayout.EndHorizontal();
+        
+        // 添加底部边框分隔线
+        DrawSeparator();
     }
 
     /// <summary>
@@ -404,6 +486,32 @@ public class UIPanelTool : EditorWindow
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("根对象:", GUILayout.Width(60));
         GameObject newTarget = (GameObject)EditorGUILayout.ObjectField(targetGameObject, typeof(GameObject), true);
+        
+        // 添加"选择当前选中"按钮
+        if (GUILayout.Button("选择当前选中", GUILayout.Width(100)))
+        {
+            GameObject selected = Selection.activeGameObject;
+            if (selected != null)
+            {
+                newTarget = selected;
+                // 立即更新目标对象
+                targetGameObject = newTarget;
+                if (targetGameObject != null)
+                {
+                    // 如果面板名称为空或者是上次对象的名字，则自动更新
+                    if (string.IsNullOrEmpty(panelName) || 
+                        (lastSelectedObject != null && panelName == ToPascalCase(lastSelectedObject.name)))
+                    {
+                        panelName = ToPascalCase(targetGameObject.name);
+                    }
+                }
+                lastSelectedObject = targetGameObject;
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("提示", "请先在Hierarchy中选择一个GameObject", "确定");
+            }
+        }
         
         // 检测对象变化，自动设置面板名称
         if (newTarget != targetGameObject)
@@ -489,11 +597,9 @@ public class UIPanelTool : EditorWindow
     /// </summary>
     private void DrawObjectSelectedState()
     {
+        EditorGUILayout.Space(10);
         EditorGUILayout.HelpBox("已选择对象，请点击扫描控件", MessageType.Info);
-        if (GUILayout.Button("扫描控件", GUILayout.Height(30)))
-        {
-            ScanControlsForSelectedObject();
-        }
+        EditorGUILayout.Space(10);
     }
 
     /// <summary>
@@ -504,9 +610,14 @@ public class UIPanelTool : EditorWindow
         // 处理Delete键（拖拽已在OnGUI中处理）
         HandleDeleteKey();
 
-        EditorGUILayout.LabelField("控件列表", EditorStyles.boldLabel);
         EditorGUILayout.Space(5);
+        EditorGUILayout.LabelField("控件列表", EditorStyles.boldLabel);
+        EditorGUILayout.Space(3);
 
+        // 搜索和过滤区域 - 使用Box容器包裹
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.Space(3);
+        
         // 搜索框和显示模式切换
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("搜索:", GUILayout.Width(50));
@@ -521,6 +632,8 @@ public class UIPanelTool : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
         
+        EditorGUILayout.Space(3);
+        
         // 类型过滤
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("类型:", GUILayout.Width(50));
@@ -530,6 +643,9 @@ public class UIPanelTool : EditorWindow
         int newTypeIndex = EditorGUILayout.Popup(currentTypeIndex, typeOptions, GUILayout.Width(150));
         typeFilter = typeOptions[newTypeIndex];
         EditorGUILayout.EndHorizontal();
+        
+        EditorGUILayout.Space(3);
+        EditorGUILayout.EndVertical();
 
         EditorGUILayout.Space(5);
 
@@ -537,11 +653,6 @@ public class UIPanelTool : EditorWindow
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
         DrawControlList();
         EditorGUILayout.EndScrollView();
-
-        EditorGUILayout.Space(10);
-
-        // 底部操作按钮
-        DrawBottomActions();
     }
 
     /// <summary>
@@ -551,11 +662,13 @@ public class UIPanelTool : EditorWindow
     {
         if (controlMappings == null || controlMappings.Count == 0)
         {
+            EditorGUILayout.Space(10);
             EditorGUILayout.HelpBox("没有找到控件", MessageType.Info);
+            EditorGUILayout.Space(10);
             return;
         }
 
-        // 表头（根据显示模式决定是否显示勾选框列）
+        // 表头（根据显示模式决定是否显示勾选框列）- 使用工具栏样式，添加背景色
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         if (displayMode == DisplayMode.Tree)
         {
@@ -565,6 +678,9 @@ public class UIPanelTool : EditorWindow
         EditorGUILayout.LabelField("字段名", GUILayout.Width(150));
         EditorGUILayout.LabelField("类型", GUILayout.Width(100));
         EditorGUILayout.EndHorizontal();
+
+        // 表头下方添加细线分隔
+        DrawSeparator();
 
         // 根据显示模式调用不同的绘制方法
         if (displayMode == DisplayMode.Tree)
@@ -657,8 +773,8 @@ public class UIPanelTool : EditorWindow
     {
         if (item == null || !item.isUIControl) return;
 
-        // 获取行矩形，使用紧凑布局
-        Rect rowRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight);
+        // 获取行矩形，使用稍高的行高以优化间距
+        Rect rowRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight + 2);
         
         // 计算各列的位置（紧凑对齐，无额外间距，不包含勾选框）
         float nameWidth = 150f;
@@ -672,19 +788,15 @@ public class UIPanelTool : EditorWindow
         Color originalColor = GUI.color;
         Color originalBackgroundColor = GUI.backgroundColor;
         
+        // 改进选中行的高亮效果 - 使用更柔和的颜色，绘制整行背景
         if (isSelectedInTree)
         {
-            GUI.backgroundColor = new Color(0.5f, 0.7f, 1f, 0.5f);
+            Rect highlightRect = new Rect(rowRect.x, rowRect.y, rowRect.width, rowRect.height);
+            EditorGUI.DrawRect(highlightRect, new Color(0.3f, 0.5f, 0.8f, 0.3f));
         }
         
         // 控件名（可点击选择）
         Rect nameRect = new Rect(currentX, rowRect.y, nameWidth, rowRect.height);
-        
-        // 绘制背景（如果选中）
-        if (isSelectedInTree)
-        {
-            EditorGUI.DrawRect(nameRect, new Color(0.5f, 0.7f, 1f, 0.3f));
-        }
         
         // 检测点击和双击
         if (Event.current.type == EventType.MouseDown && nameRect.Contains(Event.current.mousePosition))
@@ -745,15 +857,15 @@ public class UIPanelTool : EditorWindow
             }
         currentX += fieldNameWidth;
         
-        // 类型
+        // 类型 - 使用带颜色的类型标签
         Rect typeRect = new Rect(currentX, rowRect.y, typeWidth, rowRect.height);
         if (item.controlType != null)
         {
-            EditorGUI.LabelField(typeRect, item.controlType.Name);
+            DrawTypeLabel(typeRect, item.controlType.Name, item.controlType);
         }
         else
         {
-            EditorGUI.LabelField(typeRect, "GameObject");
+            DrawTypeLabel(typeRect, "GameObject", null);
         }
         
         GUI.color = originalColor;
@@ -801,8 +913,8 @@ public class UIPanelTool : EditorWindow
             return;
         }
 
-        // 获取行矩形，使用紧凑布局
-        Rect rowRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight);
+        // 获取行矩形，使用稍高的行高以优化间距
+        Rect rowRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight + 2);
         
         // 计算各列的位置（紧凑对齐，无额外间距）
         float indentWidth = depth * 15f;
@@ -813,6 +925,18 @@ public class UIPanelTool : EditorWindow
         float typeWidth = 100f;
         
         float currentX = rowRect.x + indentWidth;
+        
+        // 选择状态（用于Shift多选）
+        bool isSelectedInTree = selectedItems.Contains(item);
+        Color originalColor = GUI.color;
+        Color originalBackgroundColor = GUI.backgroundColor;
+        
+        // 改进选中行的高亮效果 - 使用更柔和的颜色，绘制整行背景
+        if (isSelectedInTree)
+        {
+            Rect highlightRect = new Rect(rowRect.x, rowRect.y, rowRect.width, rowRect.height);
+            EditorGUI.DrawRect(highlightRect, new Color(0.3f, 0.5f, 0.8f, 0.3f));
+        }
         
         // 展开/折叠按钮
         bool hasChildren = item.children != null && item.children.Count > 0;
@@ -844,24 +968,8 @@ public class UIPanelTool : EditorWindow
         }
         currentX += toggleWidth;
         
-        // 选择状态（用于Shift多选）
-        bool isSelectedInTree = selectedItems.Contains(item);
-        Color originalColor = GUI.color;
-        Color originalBackgroundColor = GUI.backgroundColor;
-        
-        if (isSelectedInTree)
-        {
-            GUI.backgroundColor = new Color(0.5f, 0.7f, 1f, 0.5f);
-        }
-        
         // 控件名（可点击选择）
         Rect nameRect = new Rect(currentX, rowRect.y, nameWidth, rowRect.height);
-        
-        // 绘制背景（如果选中）
-        if (isSelectedInTree)
-        {
-            EditorGUI.DrawRect(nameRect, new Color(0.5f, 0.7f, 1f, 0.3f));
-        }
         
         // 检测点击和双击
         if (Event.current.type == EventType.MouseDown && nameRect.Contains(Event.current.mousePosition))
@@ -930,15 +1038,15 @@ public class UIPanelTool : EditorWindow
         }
         currentX += fieldNameWidth;
         
-        // 类型
+        // 类型 - 使用带颜色的类型标签
         Rect typeRect = new Rect(currentX, rowRect.y, typeWidth, rowRect.height);
         if (item.isUIControl && item.controlType != null)
         {
-            EditorGUI.LabelField(typeRect, item.controlType.Name);
+            DrawTypeLabel(typeRect, item.controlType.Name, item.controlType);
         }
         else
         {
-            EditorGUI.LabelField(typeRect, "GameObject");
+            DrawTypeLabel(typeRect, "GameObject", null);
         }
         
         GUI.color = originalColor;
@@ -1241,53 +1349,73 @@ public class UIPanelTool : EditorWindow
     }
 
     /// <summary>
-    /// 绘制底部操作按钮
+    /// 绘制底部操作按钮（统一按钮区域，所有状态对齐）
     /// </summary>
     private void DrawBottomActions()
     {
-        // 根据显示模式显示不同的操作按钮
+        // 添加分隔线
+        DrawSeparator();
+        EditorGUILayout.Space(8);
+        
+        // 所有按钮放在同一行，大小一致
         EditorGUILayout.BeginHorizontal();
-        if (displayMode == DisplayMode.Tree)
-        {
-            // 树状模式：显示全选和取消选择按钮
-            if (GUILayout.Button("勾选选择的控件", GUILayout.Height(25)))
-            {
-                SelectAllUIControls();
-            }
-            if (GUILayout.Button("取消勾选", GUILayout.Height(25)))
-            {
-                UnselectAllUIControls();
-            }
-        }
-        else
-        {
-            // 线性模式：显示删除按钮
-            if (GUILayout.Button("取消勾选", GUILayout.Height(25)))
-            {
-                DeleteSelectedItems();
-            }
-        }
-        EditorGUILayout.EndHorizontal();
+        GUILayout.FlexibleSpace();
         
-        EditorGUILayout.Space(5);
-        
-        if (GUILayout.Button("生成代码", GUILayout.Height(35)))
+        // 重置按钮 - 所有状态都显示
+        if (GUILayout.Button("重置", GUILayout.Height(30), GUILayout.ExpandWidth(true), GUILayout.MinWidth(80)))
         {
-            ConfirmAllEditingFieldNames();
-            
-            // 检查是否有重复的字段名
-            if (HasDuplicateFieldNames(out List<string> duplicateNames))
+            ResetTool();
+        }
+        
+        // 根据状态显示不同的操作按钮
+        if (currentState == UIToolState.ControlsScanned)
+        {
+            // 控件已扫描状态：根据显示模式显示不同的操作按钮
+            if (displayMode == DisplayMode.Tree)
             {
-                string duplicateList = string.Join(", ", duplicateNames);
-                EditorUtility.DisplayDialog("错误", 
-                    $"检测到重复的字段名，请修改后再生成代码：\n{duplicateList}", 
-                    "确定");
+                // 树状模式：显示全选和取消选择按钮
+                if (GUILayout.Button("勾选选择的控件", GUILayout.Height(30), GUILayout.ExpandWidth(true), GUILayout.MinWidth(80)))
+                {
+                    SelectAllUIControls();
+                }
+                if (GUILayout.Button("取消勾选", GUILayout.Height(30), GUILayout.ExpandWidth(true), GUILayout.MinWidth(80)))
+                {
+                    UnselectAllUIControls();
+                }
             }
             else
             {
+                // 线性模式：显示删除按钮
+                if (GUILayout.Button("取消勾选", GUILayout.Height(30), GUILayout.ExpandWidth(true), GUILayout.MinWidth(80)))
+                {
+                    DeleteSelectedItems();
+                }
+            }
+            
+            // 生成代码按钮
+            if (GUILayout.Button("生成代码", GUILayout.Height(30), GUILayout.ExpandWidth(true), GUILayout.MinWidth(80)))
+        {
+            ConfirmAllEditingFieldNames();
+                
+                // 检查是否有重复的字段名
+                if (HasDuplicateFieldNames(out List<string> duplicateNames))
+                {
+                    string duplicateList = string.Join(", ", duplicateNames);
+                    EditorUtility.DisplayDialog("错误", 
+                        $"检测到重复的字段名，请修改后再生成代码：\n{duplicateList}", 
+                        "确定");
+                }
+                else
+                {
             GenerateCode();
+                }
             }
         }
+        
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
+        
+        EditorGUILayout.Space(5);
     }
 
     /// <summary>
@@ -1358,7 +1486,9 @@ public class UIPanelTool : EditorWindow
     /// </summary>
     private void DrawCodeGeneratedState()
     {
+        EditorGUILayout.Space(10);
         EditorGUILayout.HelpBox("代码已生成，等待编译完成后将自动挂载脚本并绑定控件", MessageType.Info);
+        EditorGUILayout.Space(10);
     }
 
     /// <summary>

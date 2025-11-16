@@ -14,7 +14,6 @@ public class MyCanvasBaseBase : MonoBehaviour
     public Button testBtn4_2;
     public Button testBtn4_3;
     public ScrollRect scroll_View;
-    public Button testSSS;
     public Button asdf;
     public TextMeshProUGUI qqqq;
     public Button button;
@@ -33,22 +32,22 @@ public class MyCanvasBaseBase : MonoBehaviour
         testBtn4_1.onClick.AddListener(OntestBtn4_1Click);
         testBtn4_2.onClick.AddListener(OntestBtn4_2Click);
         testBtn4_3.onClick.AddListener(OntestBtn4_3Click);
-        testSSS.onClick.AddListener(OntestSSSClick);
         asdf.onClick.AddListener(OnasdfClick);
         button.onClick.AddListener(OnbuttonClick);
 
     }
 
     //自动生成的对应进行监听事件的响应函数
-    protected virtual void OntestBtnClick() { }
-    protected virtual void OntestBtn1Click() { }
-    protected virtual void OntestBtn2Click() { }
-    protected virtual void OntestBtn3Click() { }
-    protected virtual void OntestBtn4Click() { }
-    protected virtual void OntestBtn4_1Click() { }
-    protected virtual void OntestBtn4_2Click() { }
-    protected virtual void OntestBtn4_3Click() { }
-    protected virtual void OntestSSSClick() { }
-    protected virtual void OnasdfClick() { }
-    protected virtual void OnbuttonClick() { }
+    protected virtual void OntestBtnClick(){}
+    protected virtual void OntestBtn1Click(){}
+    protected virtual void OntestBtn2Click(){}
+    protected virtual void OntestBtn3Click(){}
+    protected virtual void OntestBtn4Click(){}
+    protected virtual void OntestBtn4_1Click(){}
+    protected virtual void OntestBtn4_2Click(){}
+    protected virtual void OntestBtn4_3Click(){}
+    protected virtual void OnasdfClick(){}
+    protected virtual void OnbuttonClick(){}
+
+
 }
