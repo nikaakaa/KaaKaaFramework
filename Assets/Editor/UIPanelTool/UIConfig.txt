@@ -1,0 +1,12 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class {0} : {1}Base
+{{
+    protected override void Start()
+    {{
+        //这个必须保留 这样 就可以找到对应的控件 进行监听了
+        base.Start();
+    }}
+}}
