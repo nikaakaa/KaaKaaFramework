@@ -480,12 +480,36 @@ public class UIPanelTool : EditorWindow
     private void DrawEmptyState()
     {
         EditorGUILayout.Space(20);
-        EditorGUILayout.HelpBox("请选择一个GameObject作为UI面板的根对象", MessageType.Info);
+        EditorGUILayout.HelpBox("请选择一个GameObject作为UI面板的根对象\n支持场景对象、预制体资源和预制体实例", MessageType.Info);
         EditorGUILayout.Space(10);
 
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("根对象:", GUILayout.Width(60));
         GameObject newTarget = (GameObject)EditorGUILayout.ObjectField(targetGameObject, typeof(GameObject), true);
+        
+        // 显示对象类型信息
+        if (newTarget != null)
+        {
+            string objectType = "";
+            if (PrefabUtility.IsPartOfPrefabAsset(newTarget))
+            {
+                objectType = "预制体资源";
+            }
+            else if (PrefabUtility.IsPartOfPrefabInstance(newTarget))
+            {
+                objectType = "预制体实例";
+            }
+            else if (newTarget.scene.IsValid())
+            {
+                objectType = "场景对象";
+            }
+            else
+            {
+                objectType = "未知类型";
+            }
+            
+            EditorGUILayout.LabelField($"({objectType})", EditorStyles.miniLabel, GUILayout.Width(80));
+        }
         
         // 添加"选择当前选中"按钮
         if (GUILayout.Button("选择当前选中", GUILayout.Width(100)))
@@ -1868,8 +1892,11 @@ public class UIPanelTool : EditorWindow
         // 生成字典声明代码
         string dictionaryCode = GenerateDictionaryCode(selectedMappings);
 
-        // 生成事件监听代码
-        string listenerCode = GenerateListenerCode(selectedMappings);
+        // 生成添加事件监听代码（用于OnEnable）
+        string addListenerCode = GenerateAddListenerCode(selectedMappings);
+
+        // 生成移除事件监听代码（用于OnDisable）
+        string removeListenerCode = GenerateRemoveListenerCode(selectedMappings);
 
         // 生成事件响应函数代码
         string functionCode = GenerateFunctionCode(selectedMappings);
@@ -1878,7 +1905,8 @@ public class UIPanelTool : EditorWindow
         string baseCode = string.Format(baseTemplate.text, 
             panelName + "Base",
             dictionaryCode,
-            listenerCode,
+            addListenerCode,
+            removeListenerCode,
             functionCode);
 
         // 生成子类代码
@@ -2060,29 +2088,61 @@ public class UIPanelTool : EditorWindow
     }
 
     /// <summary>
-    /// 生成事件监听代码
+    /// 生成添加事件监听代码（用于OnEnable）
     /// </summary>
-    private string GenerateListenerCode(List<ControlMappingItem> mappings)
+    private string GenerateAddListenerCode(List<ControlMappingItem> mappings)
     {
         StringBuilder sb = new StringBuilder();
         
         foreach (var mapping in mappings)
         {
             string fieldName = mapping.fieldName;
+            string pascalFieldName = ToPascalCase(fieldName);
             Type type = mapping.controlType;
 
             if (type == typeof(Button))
             {
-                // 每行都需要8个空格缩进（模板中{2}的位置在Start方法内，有8个空格）
-                sb.AppendLine($"        {fieldName}.onClick.AddListener(On{fieldName}Click);");
+                // 每行都需要8个空格缩进（模板中{2}的位置在OnEnable方法内，有8个空格）
+                sb.AppendLine($"        {fieldName}.onClick.AddListener(On{pascalFieldName}Click);");
             }
             else if (type == typeof(Slider))
             {
-                sb.AppendLine($"        {fieldName}.onValueChanged.AddListener(On{fieldName}ValueChanged);");
+                sb.AppendLine($"        {fieldName}.onValueChanged.AddListener(On{pascalFieldName}ValueChanged);");
             }
             else if (type == typeof(Toggle))
             {
-                sb.AppendLine($"        {fieldName}.onValueChanged.AddListener(On{fieldName}ValueChanged);");
+                sb.AppendLine($"        {fieldName}.onValueChanged.AddListener(On{pascalFieldName}ValueChanged);");
+            }
+        }
+        
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 生成移除事件监听代码（用于OnDisable）
+    /// </summary>
+    private string GenerateRemoveListenerCode(List<ControlMappingItem> mappings)
+    {
+        StringBuilder sb = new StringBuilder();
+        
+        foreach (var mapping in mappings)
+        {
+            string fieldName = mapping.fieldName;
+            string pascalFieldName = ToPascalCase(fieldName);
+            Type type = mapping.controlType;
+
+            if (type == typeof(Button))
+            {
+                // 每行都需要8个空格缩进（模板中{3}的位置在OnDisable方法内，有8个空格）
+                sb.AppendLine($"        {fieldName}.onClick.RemoveListener(On{pascalFieldName}Click);");
+            }
+            else if (type == typeof(Slider))
+            {
+                sb.AppendLine($"        {fieldName}.onValueChanged.RemoveListener(On{pascalFieldName}ValueChanged);");
+            }
+            else if (type == typeof(Toggle))
+            {
+                sb.AppendLine($"        {fieldName}.onValueChanged.RemoveListener(On{pascalFieldName}ValueChanged);");
             }
         }
         
@@ -2099,20 +2159,21 @@ public class UIPanelTool : EditorWindow
         foreach (var mapping in mappings)
         {
             string fieldName = mapping.fieldName;
+            string pascalFieldName = ToPascalCase(fieldName);
             Type type = mapping.controlType;
 
             if (type == typeof(Button))
             {
-                // 每行都需要4个空格缩进（模板中{3}的位置有4个空格）
-                sb.AppendLine($"    protected virtual void On{fieldName}Click(){{}}");
+                // 每行都需要4个空格缩进（模板中{4}的位置有4个空格）
+                sb.AppendLine($"    protected virtual void On{pascalFieldName}Click(){{}}");
             }
             else if (type == typeof(Slider))
             {
-                sb.AppendLine($"    protected virtual void On{fieldName}ValueChanged(float value){{}}");
+                sb.AppendLine($"    protected virtual void On{pascalFieldName}ValueChanged(float value){{}}");
             }
             else if (type == typeof(Toggle))
             {
-                sb.AppendLine($"    protected virtual void On{fieldName}ValueChanged(bool value){{}}");
+                sb.AppendLine($"    protected virtual void On{pascalFieldName}ValueChanged(bool value){{}}");
             }
         }
         
@@ -2165,24 +2226,25 @@ public class UIPanelTool : EditorWindow
                 foreach (var mapping in newMappings)
                 {
                     string fieldName = mapping.fieldName;
+                    string pascalFieldName = ToPascalCase(fieldName);
                     Type type = mapping.controlType;
                     string functionName = "";
                     string functionSignature = "";
                     
                     if (type == typeof(Button))
                     {
-                        functionName = $"On{fieldName}Click";
-                        functionSignature = $"    protected virtual void On{fieldName}Click()";
+                        functionName = $"On{pascalFieldName}Click";
+                        functionSignature = $"    protected virtual void On{pascalFieldName}Click()";
                     }
                     else if (type == typeof(Slider))
                     {
-                        functionName = $"On{fieldName}ValueChanged";
-                        functionSignature = $"    protected virtual void On{fieldName}ValueChanged(float value)";
+                        functionName = $"On{pascalFieldName}ValueChanged";
+                        functionSignature = $"    protected virtual void On{pascalFieldName}ValueChanged(float value)";
                     }
                     else if (type == typeof(Toggle))
                     {
-                        functionName = $"On{fieldName}ValueChanged";
-                        functionSignature = $"    protected virtual void On{fieldName}ValueChanged(bool value)";
+                        functionName = $"On{pascalFieldName}ValueChanged";
+                        functionSignature = $"    protected virtual void On{pascalFieldName}ValueChanged(bool value)";
                     }
                     
                     if (!string.IsNullOrEmpty(functionName))
@@ -2205,16 +2267,17 @@ public class UIPanelTool : EditorWindow
                 foreach (var mapping in newMappings)
                 {
                     string fieldName = mapping.fieldName;
+                    string pascalFieldName = ToPascalCase(fieldName);
                     Type type = mapping.controlType;
                     string functionName = "";
                     
                     if (type == typeof(Button))
                     {
-                        functionName = $"On{fieldName}Click";
+                        functionName = $"On{pascalFieldName}Click";
                     }
                     else if (type == typeof(Slider) || type == typeof(Toggle))
                     {
-                        functionName = $"On{fieldName}ValueChanged";
+                        functionName = $"On{pascalFieldName}ValueChanged";
                     }
                     
                     if (!string.IsNullOrEmpty(functionName))
@@ -2318,24 +2381,25 @@ public class UIPanelTool : EditorWindow
             foreach (var mapping in newMappings)
             {
                 string fieldName = mapping.fieldName;
+                string pascalFieldName = ToPascalCase(fieldName);
                 Type type = mapping.controlType;
                 string functionName = "";
                 string functionSignature = "";
                 
                 if (type == typeof(Button))
                 {
-                    functionName = $"On{fieldName}Click";
-                    functionSignature = $"    protected virtual void On{fieldName}Click()";
+                    functionName = $"On{pascalFieldName}Click";
+                    functionSignature = $"    protected virtual void On{pascalFieldName}Click()";
                 }
                 else if (type == typeof(Slider))
                 {
-                    functionName = $"On{fieldName}ValueChanged";
-                    functionSignature = $"    protected virtual void On{fieldName}ValueChanged(float value)";
+                    functionName = $"On{pascalFieldName}ValueChanged";
+                    functionSignature = $"    protected virtual void On{pascalFieldName}ValueChanged(float value)";
                 }
                 else if (type == typeof(Toggle))
                 {
-                    functionName = $"On{fieldName}ValueChanged";
-                    functionSignature = $"    protected virtual void On{fieldName}ValueChanged(bool value)";
+                    functionName = $"On{pascalFieldName}ValueChanged";
+                    functionSignature = $"    protected virtual void On{pascalFieldName}ValueChanged(bool value)";
                 }
                 
                 if (!string.IsNullOrEmpty(functionName))
@@ -2357,16 +2421,17 @@ public class UIPanelTool : EditorWindow
             foreach (var mapping in newMappings)
             {
                 string fieldName = mapping.fieldName;
+                string pascalFieldName = ToPascalCase(fieldName);
                 Type type = mapping.controlType;
                 string functionName = "";
                 
                 if (type == typeof(Button))
                 {
-                    functionName = $"On{fieldName}Click";
+                    functionName = $"On{pascalFieldName}Click";
                 }
                 else if (type == typeof(Slider) || type == typeof(Toggle))
                 {
-                    functionName = $"On{fieldName}ValueChanged";
+                    functionName = $"On{pascalFieldName}ValueChanged";
                 }
                 
                 if (!string.IsNullOrEmpty(functionName))
@@ -2615,17 +2680,129 @@ public class UIPanelTool : EditorWindow
     {
         if (obj == null) return "";
 
-        if (PrefabUtility.IsPartOfPrefabInstance(obj))
+        // 检查是否为预制体资源（在Project窗口中）
+        if (PrefabUtility.IsPartOfPrefabAsset(obj))
         {
-            return PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(obj);
+            string assetPath = AssetDatabase.GetAssetPath(obj);
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                // 获取Hierarchy路径（相对于预制体根对象）
+                string hierarchyPath = GetHierarchyPathInPrefab(obj);
+                if (string.IsNullOrEmpty(hierarchyPath))
+                {
+                    return $"PrefabAsset:{assetPath}";
+                }
+                else
+                {
+                    return $"PrefabAsset:{assetPath}:{hierarchyPath}";
+                }
+            }
         }
 
+        // 检查是否为预制体实例（在场景中）
+        if (PrefabUtility.IsPartOfPrefabInstance(obj))
+        {
+            string assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(obj);
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                // 获取实例中的Hierarchy路径
+                string hierarchyPath = GetHierarchyPathInInstance(obj);
+                if (string.IsNullOrEmpty(hierarchyPath))
+                {
+                    return $"PrefabInstance:{assetPath}";
+                }
+                else
+                {
+                    return $"PrefabInstance:{assetPath}:{hierarchyPath}";
+                }
+            }
+        }
+
+        // 场景对象
         if (obj.scene.IsValid())
         {
-            return $"{obj.scene.path}:{obj.name}";
+            string hierarchyPath = GetHierarchyPath(obj);
+            return $"{obj.scene.path}:{hierarchyPath}";
         }
 
         return obj.name;
+    }
+
+    /// <summary>
+    /// 获取Hierarchy路径（场景对象）
+    /// </summary>
+    private string GetHierarchyPath(GameObject obj)
+    {
+        if (obj == null) return "";
+        
+        List<string> pathParts = new List<string>();
+        Transform current = obj.transform;
+        
+        // 遍历到场景根对象
+        while (current != null)
+        {
+            pathParts.Insert(0, current.name);
+            current = current.parent;
+        }
+        
+        return string.Join("/", pathParts);
+    }
+
+    /// <summary>
+    /// 获取预制体资源中的Hierarchy路径（相对于预制体根对象）
+    /// </summary>
+    private string GetHierarchyPathInPrefab(GameObject obj)
+    {
+        if (obj == null) return "";
+        
+        // 获取预制体资源路径
+        string assetPath = AssetDatabase.GetAssetPath(obj);
+        if (string.IsNullOrEmpty(assetPath)) return "";
+        
+        // 加载预制体资源
+        GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (prefabAsset == null) return "";
+        
+        // 如果就是根对象，返回空路径
+        if (obj == prefabAsset) return "";
+        
+        // 查找相对于预制体根对象的路径
+        List<string> pathParts = new List<string>();
+        Transform current = obj.transform;
+        
+        while (current != null && current.gameObject != prefabAsset)
+        {
+            pathParts.Insert(0, current.name);
+            current = current.parent;
+            
+            // 防止无限循环
+            if (current == null) break;
+        }
+        
+        return string.Join("/", pathParts);
+    }
+
+    /// <summary>
+    /// 获取预制体实例中的Hierarchy路径（相对于实例根对象）
+    /// </summary>
+    private string GetHierarchyPathInInstance(GameObject obj)
+    {
+        if (obj == null) return "";
+        
+        // 找到预制体实例根对象
+        GameObject instanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(obj);
+        if (instanceRoot == null || obj == instanceRoot) return "";
+        
+        List<string> pathParts = new List<string>();
+        Transform current = obj.transform;
+        
+        while (current != null && current.gameObject != instanceRoot)
+        {
+            pathParts.Insert(0, current.name);
+            current = current.parent;
+        }
+        
+        return string.Join("/", pathParts);
     }
 
     /// <summary>
@@ -2799,16 +2976,26 @@ public class UIPanelTool : EditorWindow
                         existingComponent = targetObj.AddComponent(panelType);
                         if (existingComponent != null)
                         {
-                    EditorUtility.SetDirty(targetObj);
-                    if (targetObj.scene.IsValid())
-                    {
-                        EditorSceneManager.MarkSceneDirty(targetObj.scene);
-                    }
+                            // 标记为已修改
+                            EditorUtility.SetDirty(targetObj);
+                            
+                            // 如果是预制体实例，记录修改
+                            if (PrefabUtility.IsPartOfPrefabInstance(targetObj))
+                            {
+                                PrefabUtility.RecordPrefabInstancePropertyModifications(targetObj);
+                            }
+                            
+                            // 如果是场景对象，标记场景为已修改
+                            if (targetObj.scene.IsValid())
+                            {
+                                EditorSceneManager.MarkSceneDirty(targetObj.scene);
+                            }
+                            
                             Debug.Log($"[UIPanelTool] ✓ 已挂载脚本 {panelName} 到 {targetObj.name}");
-                    scriptAttached = true;
-                }
-                else
-                {
+                            scriptAttached = true;
+                        }
+                        else
+                        {
                             Debug.LogError($"[UIPanelTool] ✗ 挂载脚本 {panelName} 失败：AddComponent返回null");
                         }
                     }
@@ -2901,6 +3088,13 @@ public class UIPanelTool : EditorWindow
                 if (fieldProp != null)
                 {
                     fieldProp.objectReferenceValue = controlComponent;
+                    
+                    // 如果是预制体实例，记录修改
+                    if (PrefabUtility.IsPartOfPrefabInstance(targetObj))
+                    {
+                        PrefabUtility.RecordPrefabInstancePropertyModifications(targetObj);
+                    }
+                    
                     successCount++;
                 }
                 else
@@ -2910,6 +3104,16 @@ public class UIPanelTool : EditorWindow
             }
 
             serializedObject.ApplyModifiedProperties();
+            
+            // 标记为已修改
+            EditorUtility.SetDirty(targetObj);
+            
+            // 如果是场景对象，标记场景为已修改
+            if (targetObj.scene.IsValid())
+            {
+                EditorSceneManager.MarkSceneDirty(targetObj.scene);
+            }
+            
             Debug.Log($"✓ 已绑定 {successCount}/{mappings.Count} 个控件");
             return successCount > 0;
         }
@@ -2933,6 +3137,81 @@ public class UIPanelTool : EditorWindow
 
         Debug.Log($"FindGameObjectByPathStatic: 查找路径 {path}");
 
+        // 预制体资源格式: "PrefabAsset:Assets/Prefabs/MyPrefab.prefab" 或 "PrefabAsset:Assets/Prefabs/MyPrefab.prefab:Root/Child"
+        if (path.StartsWith("PrefabAsset:"))
+        {
+            string[] parts = path.Substring("PrefabAsset:".Length).Split(new[] { ':' }, 2);
+            string assetPath = parts[0];
+            
+            GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (prefabAsset == null)
+            {
+                Debug.LogWarning($"无法加载预制体资源: {assetPath}");
+                return null;
+            }
+            
+            // 如果没有Hierarchy路径，返回根对象
+            if (parts.Length == 1 || string.IsNullOrEmpty(parts[1]))
+            {
+                Debug.Log($"通过预制体资源路径找到根对象: {prefabAsset.name}");
+                return prefabAsset;
+            }
+            
+            // 有Hierarchy路径，查找子对象
+            string hierarchyPath = parts[1];
+            Transform found = FindChildByPath(prefabAsset.transform, hierarchyPath);
+            if (found != null)
+            {
+                Debug.Log($"通过预制体资源路径和Hierarchy路径找到对象: {found.name}");
+                return found.gameObject;
+            }
+            
+            Debug.LogWarning($"在预制体资源中未找到路径: {hierarchyPath}");
+            return null;
+        }
+
+        // 预制体实例格式: "PrefabInstance:Assets/Prefabs/MyPrefab.prefab:Root/Child"
+        if (path.StartsWith("PrefabInstance:"))
+        {
+            string[] parts = path.Substring("PrefabInstance:".Length).Split(new[] { ':' }, 2);
+            string assetPath = parts[0];
+            
+            // 先尝试在场景中查找预制体实例
+            GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+            foreach (var obj in allObjects)
+            {
+                if (PrefabUtility.IsPartOfPrefabInstance(obj))
+                {
+                    string instanceAssetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(obj);
+                    if (instanceAssetPath == assetPath)
+                    {
+                        GameObject instanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(obj);
+                        if (instanceRoot != null)
+                        {
+                            // 如果没有Hierarchy路径，返回实例根对象
+                            if (parts.Length == 1 || string.IsNullOrEmpty(parts[1]))
+                            {
+                                Debug.Log($"通过预制体实例路径找到根对象: {instanceRoot.name}");
+                                return instanceRoot;
+                            }
+                            
+                            // 有Hierarchy路径，查找子对象
+                            string hierarchyPath = parts[1];
+                            Transform found = FindChildByPath(instanceRoot.transform, hierarchyPath);
+                            if (found != null)
+                            {
+                                Debug.Log($"通过预制体实例路径和Hierarchy路径找到对象: {found.name}");
+                                return found.gameObject;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Debug.LogWarning($"未找到预制体实例: {assetPath}");
+            return null;
+        }
+
         // 场景路径格式: "ScenePath:GameObjectName" 或 "ScenePath:Parent/Child"
         if (path.Contains(":"))
         {
@@ -2948,25 +3227,16 @@ public class UIPanelTool : EditorWindow
                     // 如果路径包含 /，需要递归查找
                     if (objectPath.Contains("/"))
                     {
-                        string[] pathParts = objectPath.Split('/');
+                        Transform found = null;
                         foreach (var root in roots)
                         {
-                            Transform current = root.transform;
-                            bool found = true;
-                            foreach (string part in pathParts)
-                            {
-                                current = current.Find(part);
-                                if (current == null)
-                                {
-                                    found = false;
-                                    break;
-                                }
-                            }
-                            if (found)
-                            {
-                                Debug.Log($"通过路径找到对象: {current.name}");
-                                return current.gameObject;
-                            }
+                            found = FindChildByPath(root.transform, objectPath);
+                            if (found != null) break;
+                        }
+                        if (found != null)
+                        {
+                            Debug.Log($"通过场景路径找到对象: {found.name}");
+                            return found.gameObject;
                         }
                     }
                     else
@@ -2995,9 +3265,9 @@ public class UIPanelTool : EditorWindow
             }
         }
 
-        // 尝试通过名称查找
-        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-        foreach (var obj in allObjects)
+        // 尝试通过名称查找（向后兼容）
+        GameObject[] allObjectsFallback = Resources.FindObjectsOfTypeAll<GameObject>();
+        foreach (var obj in allObjectsFallback)
         {
             if (obj.name == path && !EditorUtility.IsPersistent(obj))
             {
@@ -3008,6 +3278,25 @@ public class UIPanelTool : EditorWindow
 
         Debug.LogWarning($"未找到对象: {path}");
         return null;
+    }
+
+    /// <summary>
+    /// 根据路径查找子对象（辅助方法）
+    /// </summary>
+    private static Transform FindChildByPath(Transform root, string path)
+    {
+        if (root == null || string.IsNullOrEmpty(path)) return null;
+        
+        string[] pathParts = path.Split('/');
+        Transform current = root;
+        
+        foreach (string part in pathParts)
+        {
+            current = current.Find(part);
+            if (current == null) return null;
+        }
+        
+        return current;
     }
 
     /// <summary>

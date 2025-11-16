@@ -7,7 +7,7 @@ public class {0}Base : MonoBehaviour
     //自动生成的控件声明
 {1}
 
-    protected virtual void Start()
+    protected virtual void OnEnable()
     {{
         //控件引用已在编辑器模式下自动绑定，直接使用即可
 
@@ -15,7 +15,13 @@ public class {0}Base : MonoBehaviour
 {2}
     }}
 
-    //自动生成的对应进行监听事件的响应函数
+    protected virtual void OnDisable()
+    {{
+        //自动生成的移除对应控件的事件监听
 {3}
+    }}
+
+    //自动生成的对应进行监听事件的响应函数
+{4}
 
 }}

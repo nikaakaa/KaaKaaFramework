@@ -14,40 +14,59 @@ public class MyCanvasBaseBase : MonoBehaviour
     public Button testBtn4_2;
     public Button testBtn4_3;
     public ScrollRect scroll_View;
-    public Button asdf;
+    public Button testSSS;
+    public Button aaaa;
     public TextMeshProUGUI qqqq;
     public Button button;
 
 
-    protected virtual void Start()
+    protected virtual void OnEnable()
     {
         //控件引用已在编辑器模式下自动绑定，直接使用即可
 
         //自动生成的进行对应控件的事件监听
-        testBtn.onClick.AddListener(OntestBtnClick);
-        testBtn1.onClick.AddListener(OntestBtn1Click);
-        testBtn2.onClick.AddListener(OntestBtn2Click);
-        testBtn3.onClick.AddListener(OntestBtn3Click);
-        testBtn4.onClick.AddListener(OntestBtn4Click);
-        testBtn4_1.onClick.AddListener(OntestBtn4_1Click);
-        testBtn4_2.onClick.AddListener(OntestBtn4_2Click);
-        testBtn4_3.onClick.AddListener(OntestBtn4_3Click);
-        asdf.onClick.AddListener(OnasdfClick);
-        button.onClick.AddListener(OnbuttonClick);
+        testBtn.onClick.AddListener(OnTestBtnClick);
+        testBtn1.onClick.AddListener(OnTestBtn1Click);
+        testBtn2.onClick.AddListener(OnTestBtn2Click);
+        testBtn3.onClick.AddListener(OnTestBtn3Click);
+        testBtn4.onClick.AddListener(OnTestBtn4Click);
+        testBtn4_1.onClick.AddListener(OnTestBtn4_1Click);
+        testBtn4_2.onClick.AddListener(OnTestBtn4_2Click);
+        testBtn4_3.onClick.AddListener(OnTestBtn4_3Click);
+        testSSS.onClick.AddListener(OnTestSSSClick);
+        aaaa.onClick.AddListener(OnAaaaClick);
+        button.onClick.AddListener(OnButtonClick);
+
+    }
+
+    protected virtual void OnDisable()
+    {
+        //自动生成的移除对应控件的事件监听
+        testBtn.onClick.RemoveListener(OnTestBtnClick);
+        testBtn1.onClick.RemoveListener(OnTestBtn1Click);
+        testBtn2.onClick.RemoveListener(OnTestBtn2Click);
+        testBtn3.onClick.RemoveListener(OnTestBtn3Click);
+        testBtn4.onClick.RemoveListener(OnTestBtn4Click);
+        testBtn4_1.onClick.RemoveListener(OnTestBtn4_1Click);
+        testBtn4_2.onClick.RemoveListener(OnTestBtn4_2Click);
+        testBtn4_3.onClick.RemoveListener(OnTestBtn4_3Click);
+        testSSS.onClick.RemoveListener(OnTestSSSClick);
+        aaaa.onClick.RemoveListener(OnAaaaClick);
+        button.onClick.RemoveListener(OnButtonClick);
 
     }
 
     //自动生成的对应进行监听事件的响应函数
-    protected virtual void OntestBtnClick(){}
-    protected virtual void OntestBtn1Click(){}
-    protected virtual void OntestBtn2Click(){}
-    protected virtual void OntestBtn3Click(){}
-    protected virtual void OntestBtn4Click(){}
-    protected virtual void OntestBtn4_1Click(){}
-    protected virtual void OntestBtn4_2Click(){}
-    protected virtual void OntestBtn4_3Click(){}
-    protected virtual void OnasdfClick(){}
-    protected virtual void OnbuttonClick(){}
-
-
+    protected virtual void OnTestBtnClick(){}
+    protected virtual void OnTestBtn1Click(){}
+    protected virtual void OnTestBtn2Click(){}
+    protected virtual void OnTestBtn3Click(){}
+    protected virtual void OnTestBtn4Click(){}
+    protected virtual void OnTestBtn4_1Click(){}
+    protected virtual void OnTestBtn4_2Click(){}
+    protected virtual void OnTestBtn4_3Click(){}
+    protected virtual void OnTestSSSClick(){}
+    protected virtual void OnAaaaClick() { }
+    protected virtual void OnButtonClick(){}
+    
 }

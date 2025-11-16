@@ -4,9 +4,19 @@ using UnityEngine;
 
 public class MyCanvas : MyCanvasBaseBase
 {
-    protected override void Start()
+    protected override void OnEnable()
     {
         //这个必须保留 这样 就可以找到对应的控件 进行监听了
-        base.Start();
+        base.OnEnable();
+    }
+
+    protected override void OnDisable()
+    {
+        //这个必须保留 这样 就可以移除对应控件的事件监听
+        base.OnDisable();
+    }
+    protected override void OnAaaaClick()
+    {
+        print("OnAaaaClick");
     }
 }
