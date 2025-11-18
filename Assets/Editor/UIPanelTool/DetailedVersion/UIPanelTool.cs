@@ -254,7 +254,7 @@ public class UIPanelTool : EditorWindow
         }
     }
 
-    [MenuItem("Tools/UI/打开绑定控件面板")]
+    [MenuItem("Tools/UI/详细UI控件绑定")]
     private static void Entry()
     {
         var win = GetWindow<UIPanelTool>("绑定控件面板");
@@ -1877,8 +1877,8 @@ public class UIPanelTool : EditorWindow
         }
 
         // 加载模板
-        string baseTemplatePath = "Assets/Editor/UIPanelTool/UIConfigBase.txt";
-        string childTemplatePath = "Assets/Editor/UIPanelTool/UIConfig.txt";
+        string baseTemplatePath = "Assets/Editor/UIPanelTool/DetailedVersion/UIConfigBase.txt";
+        string childTemplatePath = "Assets/Editor/UIPanelTool/DetailedVersion/UIConfig.txt";
 
         TextAsset baseTemplate = AssetDatabase.LoadAssetAtPath<TextAsset>(baseTemplatePath);
         TextAsset childTemplate = AssetDatabase.LoadAssetAtPath<TextAsset>(childTemplatePath);
@@ -2207,7 +2207,7 @@ public class UIPanelTool : EditorWindow
         string[] newCodeLines = newCode.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
         StringBuilder mergedCode = new StringBuilder();
         
-        bool inFunctionsSection = false;
+        //bool inFunctionsSection = false;
         bool functionsReplaced = false;
         
         // 遍历新代码，替换事件函数部分
@@ -2219,7 +2219,7 @@ public class UIPanelTool : EditorWindow
             // 检测事件函数区域开始
             if (trimmedLine.Contains("//自动生成的对应进行监听事件的响应函数"))
             {
-                inFunctionsSection = true;
+                //inFunctionsSection = true;
                 mergedCode.AppendLine(line);
                 
                 // 添加合并后的事件函数

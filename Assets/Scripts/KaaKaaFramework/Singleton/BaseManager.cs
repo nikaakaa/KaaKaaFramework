@@ -4,20 +4,20 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 /// <summary>
-/// µ¥ÀıÄ£Ê½»ùÀà Ö÷ÒªÄ¿µÄÊÇ±ÜÃâ´úÂëµÄÈßÓà ·½±ãÎÒÃÇÊµÏÖµ¥ÀıÄ£Ê½µÄÀà
+/// å•ä¾‹æ¨¡å¼åŸºç±» ä¸»è¦ç›®çš„æ˜¯é¿å…ä»£ç çš„å†—ä½™ æ–¹ä¾¿æˆ‘ä»¬å®ç°å•ä¾‹æ¨¡å¼çš„ç±»
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public abstract class BaseManager<T> where T:class//,new()
 {
     private static T instance;
 
-    //ÅĞ¶Ïµ¥ÀıÄ£Ê½¶ÔÏó ÊÇ·ñÎªnull
+    //åˆ¤æ–­å•ä¾‹æ¨¡å¼å¯¹è±¡ æ˜¯å¦ä¸ºnull
     protected bool InstanceisNull => instance == null;
 
-    //ÓÃÓÚ¼ÓËøµÄ¶ÔÏó
+    //ç”¨äºåŠ é”çš„å¯¹è±¡
     protected static readonly object lockObj = new object();
 
-    //ÊôĞÔµÄ·½Ê½
+    //å±æ€§çš„æ–¹å¼
     public static T Instance
     {
         get
@@ -29,7 +29,7 @@ public abstract class BaseManager<T> where T:class//,new()
                     if (instance == null)
                     {
                         //instance = new T();
-                        //ÀûÓÃ·´ÉäµÃµ½ÎŞ²ÎË½ÓĞµÄ¹¹Ôìº¯Êı À´ÓÃÓÚ¶ÔÏóµÄÊµÀı»¯
+                        //åˆ©ç”¨åå°„å¾—åˆ°æ— å‚ç§æœ‰çš„æ„é€ å‡½æ•° æ¥ç”¨äºå¯¹è±¡çš„å®ä¾‹åŒ–
                         Type type = typeof(T);
                         ConstructorInfo info = type.GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic,
                                                                     null,
@@ -38,7 +38,7 @@ public abstract class BaseManager<T> where T:class//,new()
                         if (info != null)
                             instance = info.Invoke(null) as T;
                         else
-                            Debug.LogError("Ã»ÓĞµÃµ½¶ÔÓ¦µÄÎŞ²Î¹¹Ôìº¯Êı");
+                            Debug.LogError("æ²¡æœ‰å¾—åˆ°å¯¹åº”çš„æ— å‚æ„é€ å‡½æ•°");
 
                         //instance = Activator.CreateInstance(typeof(T), true) as T;
                     }
@@ -49,7 +49,7 @@ public abstract class BaseManager<T> where T:class//,new()
     }
 
 
-    //·½·¨µÄ·½Ê½
+    //æ–¹æ³•çš„æ–¹å¼
     //public static T GetInstance()
     //{
     //    if (instance == null)
