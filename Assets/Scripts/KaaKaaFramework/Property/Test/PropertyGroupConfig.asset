@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: PropertyGroupConfig
+  m_EditorClassIdentifier: Assembly-CSharp::PropertyGroupConfig
+  groupName: NewProperty
+  nodes:
+  - suffix: 
+    isComputed: 0
+    baseValue: 0
+    formula: 0
+    dependencies: []
+    parentSuffix: 
+    hasClamp: 0
+    clampMin: 0
+    clampMax: 0
+    useDynamicMax: 0
+    dynamicMaxSuffix: 
+    dynamicMaxMultiplier: 0
+  - suffix: 
+    isComputed: 0
+    baseValue: 0
+    formula: 2
+    dependencies: []
+    parentSuffix: 
+    hasClamp: 0
+    clampMin: 0
+    clampMax: 0
+    useDynamicMax: 0
+    dynamicMaxSuffix: 
+    dynamicMaxMultiplier: 0

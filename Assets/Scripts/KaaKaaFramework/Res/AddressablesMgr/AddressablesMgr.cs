@@ -1,394 +1,200 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
+/// <summary>
+/// Addressables 资源管理器 (优化版)
+/// </summary>
 public class AddressablesMgr : BaseManager<AddressablesMgr>
 {
-    private AddressablesMgr() {  }
+    // 缓存字典：存储 AsyncOperationHandle (结构体)，避免装箱
+    private readonly Dictionary<string, AsyncOperationHandle> _resDic = new Dictionary<string, AsyncOperationHandle>();
 
-    //有一个容器 帮助我们存储 异步加载的返回值
-    public Dictionary<string, IEnumerator> resDic = new Dictionary<string, IEnumerator>();
+    // 字符串构建器缓存，用于减少GC
+    private readonly StringBuilder _sb = new StringBuilder();
 
-    //用协程来异步加载资源的方法
-    public void LoadAssetCoroutine<T>(string name, Action<AsyncOperationHandle<T>> callback)
+    private AddressablesMgr() { }
+
+    #region 内部辅助方法
+
+    /// <summary>
+    /// 生成单个资源的缓存Key
+    /// </summary>
+    private string GetKey<T>(string name)
     {
-        MonoMgr.Instance.StartGlobalCoroutine(LoadAssetAsyncInternal(name, callback));
-    }
-
-    private IEnumerator LoadAssetAsyncInternal<T>(string name, Action<AsyncOperationHandle<T>> callback)
-    {
-        string keyName = name + "_" + typeof(T).Name;
-        AsyncOperationHandle<T> handle;
-
-        if (resDic.ContainsKey(keyName))
-        {
-            handle = (AsyncOperationHandle<T>)resDic[keyName];
-            yield return handle;
-            callback(handle);
-        }
-        else
-        {
-            handle = Addressables.LoadAssetAsync<T>(name);
-            resDic.Add(keyName, handle);
-            yield return handle;
-            if (handle.Status == AsyncOperationStatus.Succeeded)
-                callback(handle);
-            else
-            {
-                Debug.LogWarning(keyName + " 资源加载失败");
-                if (resDic.ContainsKey(keyName))
-                    resDic.Remove(keyName);
-            }
-        }
+        return $"{name}_{typeof(T).Name}";
     }
 
     /// <summary>
-    /// 每次load完一个资源就回调一次
-    /// 确保name是唯一的
+    /// 生成资源列表的缓存Key
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="mode"></param>
-    /// <param name="callBack"></param>
-    /// <param name="keys"></param>
-    public void LoadAssetsCoroutinePer<T>( Action<T> callBack, params string[] keys)
+    private string GetKeys<T>(IEnumerable<string> keys)
     {
-        MonoMgr.Instance.StartGlobalCoroutine(LoadAssetsAsyncInternalPer( callBack, keys));
-    }
-    private IEnumerator LoadAssetsAsyncInternalPer<T>(Action<T> callBack, params string[] keys)
-    {
-        if (keys == null || keys.Length == 0)
+        _sb.Clear();
+        foreach (var key in keys)
         {
-            Debug.LogWarning("未提供任何资源键。");
-            yield break;
+            _sb.Append(key).Append('_');
         }
-
-        // 遍历每一个资源键，按顺序加载
-        foreach (string key in keys)
-        {
-            string keyName = key + "_" + typeof(T).Name;
-            AsyncOperationHandle<T> handle;
-
-            // 检查缓存
-            if (resDic.ContainsKey(keyName))
-            {
-                handle = (AsyncOperationHandle<T>)resDic[keyName];
-            }
-            else
-            {
-                // 发起新的加载请求
-                handle = Addressables.LoadAssetAsync<T>(key);
-                resDic.Add(keyName, handle);
-            }
-
-            // 等待单个资源加载完成
-            yield return handle;
-
-            // 加载完成后，检查状态并调用回调
-            if (handle.Status == AsyncOperationStatus.Succeeded)
-            {
-                callBack(handle.Result);
-            }
-            else
-            {
-                Debug.LogError($"资源 {keyName} 顺序加载失败！");
-                if (resDic.ContainsKey(keyName))
-                    resDic.Remove(keyName);
-
-                // 加载失败时停止后续加载
-                yield break;
-            }
-        }
+        _sb.Append(typeof(T).Name);
+        return _sb.ToString();
     }
+
+    #endregion
+
+    #region 异步加载单个资源
 
     /// <summary>
-    /// 所有资源加载完毕后回调一次
+    /// 异步加载单个资源
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="mode"></param>
-    /// <param name="callBack"></param>
-    /// <param name="keys"></param>
-    public void LoadAssetsCoroutineUni<T>(Addressables.MergeMode mode, Action<IList<T>> callBack, params string[] keys)
+    /// <typeparam name="T">资源类型</typeparam>
+    /// <param name="name">资源地址名称</param>
+    /// <param name="callback">加载完成后的回调</param>
+    public void LoadAssetAsync<T>(string name, Action<T> callback)
     {
-        MonoMgr.Instance.StartGlobalCoroutine(LoadAssetsAsyncInternalUni(mode, callBack, keys));
-    }
-    private IEnumerator LoadAssetsAsyncInternalUni<T>(Addressables.MergeMode mode, Action<IList<T>> callBack, params string[] keys)
-    {
-        List<string> list = new List<string>(keys);
-        string keyName = "";
-        foreach (string key in list)
-            keyName += key + "_";
-        keyName += typeof(T).Name;
+        string keyName = GetKey<T>(name);
 
-        // 获取异步操作句柄
-        AsyncOperationHandle<IList<T>> handle;
+        // 1. 检查缓存
+        if (_resDic.TryGetValue(keyName, out AsyncOperationHandle handle))
+        {
+            // 将无泛型句柄转换为泛型句柄
+            AsyncOperationHandle<T> tHandle = handle.Convert<T>();
 
-        // 检查资源是否已在缓存中
-        if (resDic.ContainsKey(keyName))
-        {
-            // 如果已缓存，直接从字典中取出句柄
-            handle = (AsyncOperationHandle<IList<T>>)resDic[keyName];
-        }
-        else
-        {
-            // 如果未缓存，发起新的异步加载请求，注意这里传入 null
-            // 因为我们想在协程中手动处理回调
-            handle = Addressables.LoadAssetsAsync<T>(list, null, mode);
-            // 将句柄存入缓存字典
-            resDic.Add(keyName, handle);
-        }
-
-        // 等待加载完成
-        yield return handle;
-
-        // 加载完成后，检查状态
-        if (handle.Status == AsyncOperationStatus.Succeeded)
-        {
-            // 只有当整个批量操作成功时，才调用回调
-            // 传入整个资源列表
-            callBack(handle.Result);
-            Debug.Log($"资源组 {keyName} 加载成功！");
-        }
-        else
-        {
-            // 处理加载失败
-            Debug.LogError($"资源组 {keyName} 加载失败！");
-            // 失败后从字典中移除，避免下次加载时直接从失败的句柄中获取
-            if (resDic.ContainsKey(keyName))
+            if (tHandle.IsDone)
             {
-                resDic.Remove(keyName);
-            }
-        }
-    }
-
-    //异步加载资源的方法
-    public void LoadAssetAsync<T>(string name, Action<AsyncOperationHandle<T>> callBack)
-    {
-        //由于存在同名 不同类型资源的区分加载
-        //所以我们通过名字和类型拼接作为 key
-        string keyName = name + "_" + typeof(T).Name;
-        AsyncOperationHandle<T> handle;
-        //如果已经加载过该资源
-        if (resDic.ContainsKey(keyName))
-        {
-            //获取异步加载返回的操作内容
-            handle = (AsyncOperationHandle<T>)resDic[keyName];
-
-            //判断 这个异步加载是否结束
-            if (handle.IsDone)
-            {
-                //如果成功 就不需要异步了 直接相当于同步调用了 这个委托函数 传入对应的返回值
-                callBack(handle);
-            }
-            //还没有加载完成
-            else
-            {
-                //如果这个时候 还没有异步加载完成 那么我们只需要 告诉它 完成时做什么就行了
-                handle.Completed += (obj) => {
-                    if (obj.Status == AsyncOperationStatus.Succeeded)
-                        callBack(obj);
-                };
-            }
-            return;
-        }
-
-        //如果没有加载过该资源
-        //直接进行异步加载 并且记录
-        handle = Addressables.LoadAssetAsync<T>(name);
-        handle.Completed += (obj) => {
-            if (obj.Status == AsyncOperationStatus.Succeeded)
-                callBack(obj);
-            else
-            {
-                Debug.LogWarning(keyName + "资源加载失败");
-                if (resDic.ContainsKey(keyName))
-                    resDic.Remove(keyName);
-            }
-        };
-        resDic.Add(keyName, handle);
-    }
-
-    
-
-    //异步加载多个资源 或者 加载指定资源
-    public void LoadAssetsAsync<T>(Addressables.MergeMode mode, Action<T> callBack, params string[] keys)
-    {
-        //1.构建一个keyName  之后用于存入到字典中
-        List<string> list = new List<string>(keys);
-        string keyName = "";
-        foreach (string key in list)
-            keyName += key + "_";
-        keyName += typeof(T).Name;
-        //2.判断是否存在已经加载过的内容 
-        //存在做什么
-        AsyncOperationHandle<IList<T>> handle;
-        if (resDic.ContainsKey(keyName))
-        {
-            handle = (AsyncOperationHandle<IList<T>>)resDic[keyName];
-            //异步加载是否结束
-            if (handle.IsDone)
-            {
-                foreach (T item in handle.Result)
-                    callBack(item);
+                if (tHandle.Status == AsyncOperationStatus.Succeeded)
+                    callback?.Invoke(tHandle.Result);
             }
             else
             {
-                handle.Completed += (obj) =>
+                // 如果正在加载中，订阅完成事件
+                tHandle.Completed += (op) =>
                 {
-                    //加载成功才调用外部传入的委托函数
-                    if (obj.Status == AsyncOperationStatus.Succeeded)
-                    {
-                        foreach (T item in handle.Result)
-                            callBack(item);
-                    }
+                    if (op.Status == AsyncOperationStatus.Succeeded)
+                        callback?.Invoke(op.Result);
                 };
             }
             return;
         }
-        //不存在做什么
-        handle = Addressables.LoadAssetsAsync<T>(list, callBack, mode);
-        handle.Completed += (obj) =>
+
+        // 2. 如果未加载，发起新请求
+        // 关键点：Addressables 内部自动处理异步，不需要 StartCoroutine
+        var newHandle = Addressables.LoadAssetAsync<T>(name);
+
+        // 立即加入字典，防止同一帧多次调用导致的重复加载
+        _resDic.Add(keyName, newHandle);
+
+        newHandle.Completed += (op) =>
         {
-            if (obj.Status == AsyncOperationStatus.Failed)
+            if (op.Status == AsyncOperationStatus.Succeeded)
             {
-                Debug.LogError("资源加载失败" + keyName);
-                if (resDic.ContainsKey(keyName))
-                    resDic.Remove(keyName);
+                callback?.Invoke(op.Result);
+            }
+            else
+            {
+                Debug.LogError($"[AddressablesMgr] 资源加载失败: {name} (Key: {keyName})");
+                // 加载失败，从缓存移除并释放句柄
+                if (_resDic.ContainsKey(keyName))
+                {
+                    _resDic.Remove(keyName);
+                    Addressables.Release(op);
+                }
             }
         };
-        resDic.Add(keyName, handle);
     }
 
+    #endregion
 
+    #region 同步加载
 
-    
-
-
-
-
-
-
-
-
-    #region 同步加载资源
     /// <summary>
-    /// 同步加载单个资源
+    /// 同步加载单个资源 (注意：可能会卡顿主线程)
     /// </summary>
     public T LoadAssetSync<T>(string name)
     {
-        string keyName = name + "_" + typeof(T).Name;
-        AsyncOperationHandle<T> handle;
+        string keyName = GetKey<T>(name);
 
-        // 如果资源已经在异步加载中或已完成，直接等待结果
-        if (resDic.ContainsKey(keyName))
+        if (_resDic.TryGetValue(keyName, out AsyncOperationHandle handle))
         {
-            handle = (AsyncOperationHandle<T>)resDic[keyName];
-            handle.WaitForCompletion();
-            return handle.Result;
+            var tHandle = handle.Convert<T>();
+            if (!tHandle.IsDone) tHandle.WaitForCompletion(); // 强制等待
+            return tHandle.Status == AsyncOperationStatus.Succeeded ? tHandle.Result : default;
+        }
+
+        var newHandle = Addressables.LoadAssetAsync<T>(name);
+        newHandle.WaitForCompletion(); // 阻塞等待
+
+        if (newHandle.Status == AsyncOperationStatus.Succeeded)
+        {
+            _resDic.Add(keyName, newHandle);
+            return newHandle.Result;
         }
         else
         {
-            // 如果资源还未加载，则进行同步加载
-            handle = Addressables.LoadAssetAsync<T>(name);
-            handle.WaitForCompletion();
+            Debug.LogError($"[AddressablesMgr] 同步加载失败: {name}");
+            Addressables.Release(newHandle); // 失败也要释放
+            return default;
+        }
+    }
 
-            // 成功加载后存入字典
-            if (handle.Status == AsyncOperationStatus.Succeeded)
-            {
-                resDic.Add(keyName, handle);
-                return handle.Result;
-            }
-            else
-            {
-                Debug.LogError($"同步加载资源失败: {name}");
-                return default;
-            }
+    #endregion
+
+    #region 资源释放与清理
+
+    /// <summary>
+    /// 释放单个资源
+    /// </summary>
+    public void Release<T>(string name)
+    {
+        string keyName = GetKey<T>(name);
+        if (_resDic.TryGetValue(keyName, out AsyncOperationHandle handle))
+        {
+            // 必须先 Release，再 Remove
+            Addressables.Release(handle);
+            _resDic.Remove(keyName);
         }
     }
 
     /// <summary>
-    /// 同步加载多个资源
+    /// 释放资源组
     /// </summary>
-    public IList<T> LoadAssetsSync<T>(Addressables.MergeMode mode, params string[] keys)
-    {
-        List<string> list = new List<string>(keys);
-        string keyName = "";
-        foreach (string key in list)
-            keyName += key + "_";
-        keyName += typeof(T).Name;
-
-        AsyncOperationHandle<IList<T>> handle;
-
-        // 如果资源已经在异步加载中或已完成，直接等待结果
-        if (resDic.ContainsKey(keyName))
-        {
-            handle = (AsyncOperationHandle<IList<T>>)resDic[keyName];
-            handle.WaitForCompletion();
-            return handle.Result;
-        }
-        else
-        {
-            // 如果资源还未加载，则进行同步加载
-            handle = Addressables.LoadAssetsAsync<T>(list, null, mode);
-            handle.WaitForCompletion();
-
-            // 成功加载后存入字典
-            if (handle.Status == AsyncOperationStatus.Succeeded)
-            {
-                resDic.Add(keyName, handle);
-                return handle.Result;
-            }
-            else
-            {
-                Debug.LogError($"同步加载多个资源失败: {keyName}");
-                return null;
-            }
-        }
-    }
-    #endregion
-    //释放资源的方法 
-    public void Release<T>(string name)
-    {
-        //由于存在同名 不同类型资源的区分加载
-        //所以我们通过名字和类型拼接作为 key
-        string keyName = name + "_" + typeof(T).Name;
-        if (resDic.ContainsKey(keyName))
-        {
-            //取出对象 移除资源 并且从字典里面移除
-            AsyncOperationHandle<T> handle = (AsyncOperationHandle<T>)resDic[keyName];
-            Addressables.Release(handle);
-            resDic.Remove(keyName);
-        }
-    }
-    // 释放资源的方法，用于多个资源
     public void Release<T>(params string[] keys)
     {
-        //1.构建一个keyName  之后用于存入到字典中
+        if (keys == null || keys.Length == 0) return;
         List<string> list = new List<string>(keys);
-        string keyName = "";
-        foreach (string key in list)
-            keyName += key + "_";
-        keyName += typeof(T).Name;
+        string keyName = GetKeys<T>(list);
 
-        if (resDic.ContainsKey(keyName))
+        if (_resDic.TryGetValue(keyName, out AsyncOperationHandle handle))
         {
-            //取出字典里面的对象
-            AsyncOperationHandle<IList<T>> handle = (AsyncOperationHandle<IList<T>>)resDic[keyName];
             Addressables.Release(handle);
-            resDic.Remove(keyName);
+            _resDic.Remove(keyName);
         }
     }
 
-
-
-    //清空资源
+    /// <summary>
+    /// 清空所有资源
+    /// </summary>
     public void Clear()
     {
-        resDic.Clear();
-        AssetBundle.UnloadAllAssetBundles(true);
+        // 1. 遍历并释放所有句柄
+        foreach (var handle in _resDic.Values)
+        {
+            if (handle.IsValid())
+            {
+                Addressables.Release(handle);
+            }
+        }
+
+        // 2. 清空字典
+        _resDic.Clear();
+        _sb.Clear();
+
+        // 3. 清理内存 (不建议调用 UnloadAllAssetBundles，这很危险)
         Resources.UnloadUnusedAssets();
         GC.Collect();
     }
+
+    #endregion
 }

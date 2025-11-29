@@ -2866,14 +2866,14 @@ public class UIPanelTool : EditorWindow
         // 从 EditorPrefs 加载标志
         needProcessPendingMappings = EditorPrefs.GetBool(PREF_KEY_NEED_PROCESS, false);
 
-        Debug.Log($"[UIPanelTool] OnScriptsReloaded: 脚本重载完成，待处理映射数量: {mappings.Count}, needProcessPendingMappings: {needProcessPendingMappings}");
+        //Debug.Log($"[UIPanelTool] OnScriptsReloaded: 脚本重载完成，待处理映射数量: {mappings.Count}, needProcessPendingMappings: {needProcessPendingMappings}");
 
         if (mappings.Count > 0)
         {
             needProcessPendingMappings = true;
             EditorPrefs.SetBool(PREF_KEY_NEED_PROCESS, true);
             delayFrameCount = 2; // 等待2帧确保程序集完全加载
-            Debug.Log($"[UIPanelTool] OnScriptsReloaded: 设置需要处理标志，待处理映射数量: {mappings.Count}");
+            //Debug.Log($"[UIPanelTool] OnScriptsReloaded: 设置需要处理标志，待处理映射数量: {mappings.Count}");
 
             // 使用 update 回调延迟处理，确保所有程序集都已加载
             EditorApplication.update += OnDelayedProcessUpdate;
@@ -2882,7 +2882,7 @@ public class UIPanelTool : EditorWindow
         {
             needProcessPendingMappings = false;
             EditorPrefs.SetBool(PREF_KEY_NEED_PROCESS, false);
-            Debug.Log("[UIPanelTool] OnScriptsReloaded: 没有待处理的映射");
+            //Debug.Log("[UIPanelTool] OnScriptsReloaded: 没有待处理的映射");
         }
     }
 

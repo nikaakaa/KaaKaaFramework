@@ -144,7 +144,7 @@ public class UIMgr : BaseManager<UIMgr>
             Transform father = GetLayerFather(layer);
 
             // 使用 handle.Result 获取加载到的 GameObject 资源
-            GameObject panelObj = GameObject.Instantiate(handle.Result, father, false);
+            GameObject panelObj = GameObject.Instantiate(handle, father, false);
 
             T panel = panelObj.GetComponent<T>();
             panel.ShowMe();

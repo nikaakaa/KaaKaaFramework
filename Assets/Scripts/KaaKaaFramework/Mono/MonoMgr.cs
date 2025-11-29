@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// ¹«¹²MonoÄ£¿é¹ÜÀíÆ÷
+/// å…¬å…±Monoæ¨¡å—ç®¡ç†å™¨
 /// </summary>
 public class MonoMgr : SingletonAutoMono<MonoMgr>
 {
@@ -13,7 +13,7 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
     private event UnityAction lateUpdateEvent;
 
     /// <summary>
-    /// Ìí¼ÓUpdateÖ¡¸üĞÂ¼àÌıº¯Êı
+    /// æ·»åŠ Updateå¸§æ›´æ–°ç›‘å¬å‡½æ•°
     /// </summary>
     /// <param name="updateFun"></param>
     public void AddUpdateListener(UnityAction updateFun)
@@ -22,7 +22,7 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
     }
 
     /// <summary>
-    /// ÒÆ³ıUpdateÖ¡¸üĞÂ¼àÌıº¯Êı
+    /// ç§»é™¤Updateå¸§æ›´æ–°ç›‘å¬å‡½æ•°
     /// </summary>
     /// <param name="updateFun"></param>
     public void RemoveUpdateListener(UnityAction updateFun)
@@ -31,7 +31,7 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
     }
 
     /// <summary>
-    /// Ìí¼ÓFixedUpdateÖ¡¸üĞÂ¼àÌıº¯Êı
+    /// æ·»åŠ FixedUpdateå¸§æ›´æ–°ç›‘å¬å‡½æ•°
     /// </summary>
     /// <param name="updateFun"></param>
     public void AddFixedUpdateListener(UnityAction updateFun)
@@ -39,7 +39,7 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
         fixedUpdateEvent += updateFun;
     }
     /// <summary>
-    /// ÒÆ³ıFixedUpdateÖ¡¸üĞÂ¼àÌıº¯Êı
+    /// ç§»é™¤FixedUpdateå¸§æ›´æ–°ç›‘å¬å‡½æ•°
     /// </summary>
     /// <param name="updateFun"></param>
     public void RemoveFixedUpdateListener(UnityAction updateFun)
@@ -48,7 +48,7 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
     }
 
     /// <summary>
-    /// Ìí¼ÓLateUpdateÖ¡¸üĞÂ¼àÌıº¯Êı
+    /// æ·»åŠ LateUpdateå¸§æ›´æ–°ç›‘å¬å‡½æ•°
     /// </summary>
     /// <param name="updateFun"></param>
     public void AddLateUpdateListener(UnityAction updateFun)
@@ -57,7 +57,7 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
     }
 
     /// <summary>
-    /// ÒÆ³ıLateUpdateÖ¡¸üĞÂ¼àÌıº¯Êı
+    /// ç§»é™¤LateUpdateå¸§æ›´æ–°ç›‘å¬å‡½æ•°
     /// </summary>
     /// <param name="updateFun"></param>
     public void RemoveLateUpdateListener(UnityAction updateFun)
@@ -80,8 +80,6 @@ public class MonoMgr : SingletonAutoMono<MonoMgr>
     {
         lateUpdateEvent?.Invoke();
     }
-
-    //ÏÂÃæÊÇÆô¶¯Ğ­³Ì
     public Coroutine StartGlobalCoroutine(IEnumerator coroutine)
     {
         return StartCoroutine(coroutine);

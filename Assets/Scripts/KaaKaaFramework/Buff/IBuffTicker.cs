@@ -4,7 +4,7 @@ using UnityEngine;
 
 public interface IBuffTicker
 {
-    int DurationTimer { get; set; }//³ÖĞø¶àÉÙ»ØºÏ
-    int TickTimer { get; set; }//Ã¿¶àÉÙ»ØºÏ´¥·¢Ò»´Î
-    int CurStack { get; set; }//µ±Ç°²ãÊı
+    int DurationTimer { get; set; }//æŒç»­å¤šå°‘å›åˆ
+    int TickTimer { get; set; }//æ¯å¤šå°‘å›åˆè§¦å‘ä¸€æ¬¡
+    int CurStack { get; set; }//å½“å‰å±‚æ•°
 }

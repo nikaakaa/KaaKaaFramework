@@ -1,29 +1,32 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// ÒôÀÖÒôĞ§¹ÜÀíÆ÷
+/// éŸ³ä¹éŸ³æ•ˆç®¡ç†å™¨
 /// </summary>
 public class MusicMgr : BaseManager<MusicMgr>
 {
-    //±³¾°ÒôÀÖ²¥·Å×é¼ş
+    // èƒŒæ™¯éŸ³ä¹æ’­æ”¾ç»„ä»¶
     private AudioSource bkMusic = null;
-
-    //±³¾°ÒôÀÖ´óĞ¡
+    // èƒŒæ™¯éŸ³ä¹å¤§å°
     private float bkMusicValue = 0.8f;
+    // è¿½è¸ªå½“å‰åŠ è½½çš„èƒŒæ™¯éŸ³ä¹èµ„æºçš„ Keyï¼Œç”¨äºé‡Šæ”¾å¥æŸ„
+    private string _currentBkMusicKey = null;
 
-    //¹ÜÀíÕıÔÚ²¥·ÅµÄÒôĞ§
+    // ç®¡ç†æ­£åœ¨æ’­æ”¾çš„éŸ³æ•ˆ
     private List<AudioSource> soundList = new List<AudioSource>();
-    //ÒôĞ§ÒôÁ¿´óĞ¡
+    // éŸ³æ•ˆéŸ³é‡å¤§å°
     private float soundValue = 0.2f;
-    //ÒôĞ§ÊÇ·ñÔÚ²¥·Å
+    // éŸ³æ•ˆæ˜¯å¦åœ¨æ’­æ”¾
     private bool soundIsPlay = true;
 
 
     private MusicMgr()
     {
+        // ä¾èµ–å¤–éƒ¨ MonoMgr æä¾› Update é©±åŠ¨
+        // ç¡®ä¿ä½ çš„ MonoMgr å·²ç»å®ç°å¹¶æ­£å¸¸å·¥ä½œ
         MonoMgr.Instance.AddFixedUpdateListener(Update);
     }
 
@@ -33,26 +36,29 @@ public class MusicMgr : BaseManager<MusicMgr>
         if (!soundIsPlay)
             return;
 
-        //²»Í£µÄ±éÀúÈİÆ÷ ¼ì²âÓĞÃ»ÓĞÒôĞ§²¥·ÅÍê±Ï ²¥·ÅÍêÁË ¾ÍÒÆ³ıÏú»ÙËü
-        //ÎªÁË±ÜÃâ±ß±éÀú±ßÒÆ³ı³öÎÊÌâ ÎÒÃÇ²ÉÓÃÄæÏò±éÀú
+        // é€†å‘éå† soundListï¼Œå®‰å…¨åœ°ç§»é™¤å·²æ’­æ”¾å®Œæ¯•çš„éŸ³æ•ˆ
         for (int i = soundList.Count - 1; i >= 0; --i)
         {
             if (!soundList[i].isPlaying)
             {
-                //ÒôĞ§²¥·ÅÍê±ÏÁË ²»ÔÙÊ¹ÓÃÁË ÎÒÃÇ½«Õâ¸öÒôĞ§ÇĞÆ¬ÖÃ¿Õ
+                // éŸ³æ•ˆæ’­æ”¾å®Œæ¯•
+                // 1. æ¸…ç©ºåˆ‡ç‰‡ï¼Œé¿å…å ç”¨
                 soundList[i].clip = null;
+                // 2. å°†éŸ³æ•ˆå¯¹è±¡æ”¾å›ç¼“å­˜æ± 
                 PoolMgr.Instance.PushObj(soundList[i].gameObject);
+                // 3. ä»åˆ—è¡¨ä¸­ç§»é™¤
                 soundList.RemoveAt(i);
             }
         }
     }
 
 
-    //²¥·Å±³¾°ÒôÀÖ
+    /// <summary>
+    /// æ’­æ”¾èƒŒæ™¯éŸ³ä¹
+    /// </summary>
     public void PlayBKMusic(string name)
     {
-        //¶¯Ì¬´´½¨²¥·Å±³¾°ÒôÀÖµÄ×é¼ş ²¢ÇÒ ²»»á¹ı³¡¾°ÒÆ³ı 
-        //±£Ö¤±³¾°ÒôÀÖÔÚ¹ı³¡¾°Ê±Ò²ÄÜ²¥·Å
+        // åŠ¨æ€åˆ›å»ºæ’­æ”¾èƒŒæ™¯éŸ³ä¹çš„ç»„ä»¶ï¼Œå¹¶è®¾ç½®ä¸é”€æ¯
         if (bkMusic == null)
         {
             GameObject obj = new GameObject();
@@ -61,16 +67,44 @@ public class MusicMgr : BaseManager<MusicMgr>
             bkMusic = obj.AddComponent<AudioSource>();
         }
 
+        // æ ¸å¿ƒä¼˜åŒ–ï¼šé‡Šæ”¾æ—§çš„ Audio Clip å¥æŸ„
+        if (!string.IsNullOrEmpty(_currentBkMusicKey))
+        {
+            // å¦‚æœä¸Šä¸€ä¸ª Key å’Œå½“å‰ Key ä¸åŒï¼Œé‡Šæ”¾æ—§èµ„æº
+            if (_currentBkMusicKey != name)
+            {
+                AddressablesMgr.Instance.Release<AudioClip>(_currentBkMusicKey);
+                _currentBkMusicKey = null;
+            }
+            else
+            {
+                // å¦‚æœæ˜¯æ’­æ”¾åŒä¸€ä¸ªèµ„æºï¼Œåªéœ€è¦ Stop/Play å³å¯ï¼Œä¸éœ€è¦é‡æ–°åŠ è½½
+                bkMusic.Stop();
+                bkMusic.Play();
+                return;
+            }
+        }
+
+        // åŠ è½½æ–°èµ„æº
         AddressablesMgr.Instance.LoadAssetAsync<AudioClip>(name, (clip) =>
         {
-            bkMusic.clip = clip.Result;
+            if (clip == null)
+            {
+                Debug.LogError($"[MusicMgr] èƒŒæ™¯éŸ³ä¹åŠ è½½å¤±è´¥: {name}");
+                return;
+            }
+
+            bkMusic.clip = clip; // ä½¿ç”¨æ–°çš„ä¼˜åŒ–ç‰ˆ APIï¼Œç›´æ¥æ¥æ”¶ç»“æœ
             bkMusic.loop = true;
             bkMusic.volume = bkMusicValue;
             bkMusic.Play();
+
+            // è¿½è¸ªå½“å‰åŠ è½½çš„èµ„æº Key
+            _currentBkMusicKey = name;
         });
     }
 
-    //Í£Ö¹±³¾°ÒôÀÖ
+    //åœæ­¢èƒŒæ™¯éŸ³ä¹
     public void StopBKMusic()
     {
         if (bkMusic == null)
@@ -78,7 +112,7 @@ public class MusicMgr : BaseManager<MusicMgr>
         bkMusic.Stop();
     }
 
-    //ÔİÍ£±³¾°ÒôÀÖ
+    //æš‚åœèƒŒæ™¯éŸ³ä¹
     public void PauseBKMusic()
     {
         if (bkMusic == null)
@@ -86,7 +120,7 @@ public class MusicMgr : BaseManager<MusicMgr>
         bkMusic.Pause();
     }
 
-    //ÉèÖÃ±³¾°ÒôÀÖ´óĞ¡
+    //è®¾ç½®èƒŒæ™¯éŸ³ä¹å¤§å°
     public void ChangeBKMusicValue(float v)
     {
         bkMusicValue = v;
@@ -96,63 +130,86 @@ public class MusicMgr : BaseManager<MusicMgr>
     }
 
     /// <summary>
-    /// ²¥·ÅÒôĞ§
+    /// æ’­æ”¾éŸ³æ•ˆ
     /// </summary>
-    /// <param name="name">ÒôĞ§Ãû×Ö</param>
-    /// <param name="isLoop">ÊÇ·ñÑ­»·</param>
-    /// <param name="isSync">ÊÇ·ñÍ¬²½¼ÓÔØ</param>
-    /// <param name="callBack">¼ÓÔØ½áÊøºóµÄ»Øµ÷</param>
+    /// <param name="name">éŸ³æ•ˆåå­—</param>
+    /// <param name="followTransform">éŸ³æ•ˆè·Ÿéšçš„ Transformï¼Œä¸º null åˆ™ä¸è·Ÿéš</param>
+    /// <param name="isLoop">æ˜¯å¦å¾ªç¯</param>
+    /// <param name="callBack">åŠ è½½ç»“æŸåçš„å›è°ƒ</param>
     public void PlaySound(string name,
-                          Transform followTransform,
+                          Transform followTransform = null,
                           bool isLoop = false,
                           UnityAction<AudioSource> callBack = null)
     {
+        // 1. å¼‚æ­¥åŠ è½½ AudioClip
         AddressablesMgr.Instance.LoadAssetAsync<AudioClip>(name, (clip) =>
         {
+            if (clip == null)
+            {
+                Debug.LogError($"[MusicMgr] éŸ³æ•ˆåŠ è½½å¤±è´¥: {name}");
+                return;
+            }
+
+            // 2. å¼‚æ­¥ä»æ± ä¸­è·å– AudioSource GameObject
             PoolMgr.Instance.GetObjAsync("SoundObj", (soundObj) =>
             {
+                if (soundObj == null) return;
 
+                // ç¡®ä¿æœ‰ AudioSource ç»„ä»¶
                 AudioSource source = soundObj.GetComponent<AudioSource>();
-                //Èç¹ûÈ¡³öÀ´µÄÒôĞ§ÊÇÖ®Ç°ÕıÔÚÊ¹ÓÃµÄ ÎÒÃÇÏÈÍ£Ö¹Ëü
-                source.Stop();
-                source.clip = clip.Result;
+                if (source == null) source = soundObj.AddComponent<AudioSource>();
+
+                // é…ç½® AudioSource
+                source.Stop(); // åœæ­¢å¯èƒ½æ­£åœ¨æ’­æ”¾çš„æ—§éŸ³æ•ˆ
+                source.clip = clip; // ä½¿ç”¨æ–°çš„ä¼˜åŒ–ç‰ˆ APIï¼Œç›´æ¥æ¥æ”¶ç»“æœ
                 source.loop = isLoop;
                 source.volume = soundValue;
-                source.Play();
-                source.transform.SetParent(followTransform, false);
-                source.transform.localPosition = Vector3.zero;
 
-                if(!soundList.Contains(source))
+                // è®¾ç½®çˆ¶å¯¹è±¡å’Œä½ç½®
+                if (followTransform != null)
+                {
+                    // è®¾ç½®ä¸ºè·Ÿéšï¼Œä¸–ç•Œåæ ‡ä¸å˜
+                    source.transform.SetParent(followTransform, false);
+                    source.transform.localPosition = Vector3.zero;
+                }
+                else
+                {
+                    // ä¸è·Ÿéšï¼Œé€šå¸¸ç”± PoolMgr è‡ªåŠ¨è®¾ç½®å›æ ¹èŠ‚ç‚¹
+                    source.transform.SetParent(null);
+                }
+
+                source.Play();
+
+                // åŠ å…¥åˆ—è¡¨ç®¡ç†
+                if (!soundList.Contains(source))
                     soundList.Add(source);
+
                 callBack?.Invoke(source);
             });
         });
-
     }
 
     /// <summary>
-    /// Í£Ö¹²¥·ÅÒôĞ§
+    /// åœæ­¢æ’­æ”¾éŸ³æ•ˆ
     /// </summary>
-    /// <param name="source">ÒôĞ§×é¼ş¶ÔÏó</param>
+    /// <param name="source">éŸ³æ•ˆç»„ä»¶å¯¹è±¡</param>
     public void StopSound(AudioSource source)
     {
         if (soundList.Contains(source))
         {
-            //Í£Ö¹²¥·Å
             source.Stop();
-            //´ÓÈİÆ÷ÖĞÒÆ³ı
             soundList.Remove(source);
-            //²»ÓÃÁË Çå¿ÕÇĞÆ¬ ±ÜÃâÕ¼ÓÃ
+
+            // é‡Šæ”¾ AudioClip å¼•ç”¨å¹¶å›æ± 
+            // æ³¨æ„ï¼šè¿™é‡ŒéŸ³æ•ˆèµ„æºæ˜¯å…±äº«çš„ï¼Œä¸èƒ½é‡Šæ”¾ Addressables å¥æŸ„ï¼Œåªæ¸…ç©º clip å¼•ç”¨
             source.clip = null;
-            //·ÅÈë»º´æ³Ø
             PoolMgr.Instance.PushObj(source.gameObject);
         }
     }
 
     /// <summary>
-    /// ¸Ä±äÒôĞ§´óĞ¡
+    /// æ”¹å˜éŸ³æ•ˆå¤§å°
     /// </summary>
-    /// <param name="v"></param>
     public void ChangeSoundValue(float v)
     {
         soundValue = v;
@@ -163,33 +220,27 @@ public class MusicMgr : BaseManager<MusicMgr>
     }
 
     /// <summary>
-    /// ¼ÌĞø²¥·Å»òÕßÔİÍ£ËùÓĞÒôĞ§
+    /// ç»§ç»­æ’­æ”¾æˆ–è€…æš‚åœæ‰€æœ‰éŸ³æ•ˆ
     /// </summary>
-    /// <param name="isPlay">ÊÇ·ñÊÇ¼ÌĞø²¥·Å trueÎª²¥·Å falseÎªÔİÍ£</param>
     public void PlayOrPauseSound(bool isPlay)
     {
+        soundIsPlay = isPlay;
         if (isPlay)
         {
-            soundIsPlay = true;
             for (int i = 0; i < soundList.Count; i++)
-                soundList[i].Play();
+                soundList[i].UnPause(); // ä½¿ç”¨ UnPause æ›¿ä»£ Playï¼ŒPlay å¯èƒ½ä¼šé‡æ–°å¼€å§‹
         }
         else
         {
-            soundIsPlay = false;
             for (int i = 0; i < soundList.Count; i++)
                 soundList[i].Pause();
         }
     }
 
     /// <summary>
-    /// Çå¿ÕÒôĞ§Ïà¹Ø¼ÇÂ¼ ¹ı³¡¾°Ê±ÔÚÇå¿Õ»º´æ³ØÖ®Ç°È¥µ÷ÓÃËü
-    /// ÖØÒªµÄÊÂÇéËµÈı±é£¡£¡£¡
-    /// ¹ı³¡¾°Ê±ÔÚÇå¿Õ»º´æ³ØÖ®Ç°È¥µ÷ÓÃËü
-    /// ¹ı³¡¾°Ê±ÔÚÇå¿Õ»º´æ³ØÖ®Ç°È¥µ÷ÓÃËü
-    /// ¹ı³¡¾°Ê±ÔÚÇå¿Õ»º´æ³ØÖ®Ç°È¥µ÷ÓÃËü
+    /// æ¸…ç†æ‰€æœ‰æ­£åœ¨æ’­æ”¾çš„éŸ³æ•ˆ (é€šå¸¸åœ¨åˆ‡æ¢åœºæ™¯æ—¶è°ƒç”¨)
     /// </summary>
-    public void ClearSound()
+    public void ClearSoundEffects()
     {
         for (int i = 0; i < soundList.Count; i++)
         {
@@ -197,7 +248,31 @@ public class MusicMgr : BaseManager<MusicMgr>
             soundList[i].clip = null;
             PoolMgr.Instance.PushObj(soundList[i].gameObject);
         }
-        //Çå¿ÕÒôĞ§ÁĞ±í
         soundList.Clear();
+    }
+
+    /// <summary>
+    /// æ¸…ç† BGM å’Œæ‰€æœ‰ SFX èµ„æº
+    /// </summary>
+    public void ClearAll()
+    {
+        // 1. æ¸…ç†éŸ³æ•ˆ
+        ClearSoundEffects();
+
+        // 2. æ¸…ç† BGM
+        if (bkMusic != null)
+        {
+            bkMusic.Stop();
+            bkMusic.clip = null;
+            GameObject.Destroy(bkMusic.gameObject); // é”€æ¯æŒä¹…åŒ–çš„ BGM å¯¹è±¡
+            bkMusic = null;
+        }
+
+        // 3. é‡Šæ”¾ BGM èµ„æºå¥æŸ„
+        if (!string.IsNullOrEmpty(_currentBkMusicKey))
+        {
+            AddressablesMgr.Instance.Release<AudioClip>(_currentBkMusicKey);
+            _currentBkMusicKey = null;
+        }
     }
 }
