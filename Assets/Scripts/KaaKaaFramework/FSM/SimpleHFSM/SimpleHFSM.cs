@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using QFramework;
 using UnityEngine;
 
 
@@ -14,6 +13,7 @@ public interface IStateNode
 }
 public interface IStateMachine
 {
+    public IState CurrentSubState { get; set;}
     public Dictionary<string, IState> StatesDic { get; }
     public HashSet<ITransition> Transitions { get; }
 }
@@ -37,20 +37,32 @@ public static class StateMachineExtension
         var triggered = false;
         foreach (var transition in stateMachine.Transitions)
         {
+            if (transition.FromState != stateMachine.CurrentSubState) continue;
             if (transition.TryTransition())
             {
                 triggered = true;
+                stateMachine.CurrentSubState = transition.ToState;
                 break;
             }
         }
         return !triggered;
     }
+    public static bool ChangeToTheSubState(this IStateMachine stateMachine, string stateName)
+    {
+        if (stateMachine.StatesDic.TryGetValue(stateName, out var targetState))
+        {
+            stateMachine.CurrentSubState?.OnExit();
+            stateMachine.CurrentSubState = targetState;
+            stateMachine.CurrentSubState.OnEnter();
+            return true;
+        }
+        return false;
+    }
 }
 public interface IState : IStateNode, IStateMachine
 {
     public string StateName { get; }
-    public IState CurrentState { get; set;}
-    public bool OnTick();
+    public void Tick();
 }
 public class State : IState
 {
@@ -70,17 +82,20 @@ public class State : IState
         onExitAction = onExit;
     }
     public string StateName { get; }
-    public IState CurrentState { get; set; }
+    public IState CurrentSubState { get; set; }
     public Dictionary<string, IState> StatesDic { get; } = new();
     public HashSet<ITransition> Transitions { get; } = new();
 
     public virtual void OnEnter()
     {
         onEnterAction?.Invoke();
+
+        CurrentSubState?.OnEnter();
     }
 
     public virtual void OnExit()
     {
+        CurrentSubState?.OnExit();
         onExitAction?.Invoke();
     }
     public virtual void OnUpdate()
@@ -91,31 +106,14 @@ public class State : IState
     /// 给外部调用的
     /// </summary>
     /// <returns></returns>
-    public bool OnTick()
+    public void Tick()
     {
-        if(!this.TryTransitions())return false;
-
+        if(!this.TryTransitions())return;
+        
         OnUpdate();
 
-        foreach (var state in StatesDic.Values)
-        {
-            if (!state.OnTick())return false;
-        }
-        return true;
+        CurrentSubState?.Tick();
     }
-
-    public bool ChangeToTheState(string stateName)
-    {
-        if (StatesDic.TryGetValue(stateName, out var targetState))
-        {
-            CurrentState?.OnExit();
-            CurrentState = targetState;
-            CurrentState.OnEnter();
-            return true;
-        }
-        throw new KeyNotFoundException($"State {stateName} not found");
-    }
-
 }
 
 #endregion

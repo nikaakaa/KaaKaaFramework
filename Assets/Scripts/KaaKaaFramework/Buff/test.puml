@@ -1,0 +1,155 @@
+@startuml
+title 命令模式 + Buff拦截器(数据驱动) + 冲突仲裁：反制(反射)Buff 完整流程
+autonumber
+
+actor "玩家A(出牌方)" as P1
+actor "玩家B(持有反制Buff)" as P2
+
+participant "CommandMediator" as Med
+participant "CommandScheduler\n(ImmediateStack/NormalQueue)" as Sch
+participant "CommandProcessor" as Proc
+participant "InterceptorPipeline" as Pipe
+participant "ConflictArbiter\n(Stage+Priority+合并)" as Arb
+
+participant "BuffSystem" as BuffSys
+participant "DefRepository\n(BuffDef/InterceptorDef)" as Repo
+
+participant "ReflectCounterInterceptor\n(由InterceptorDef实例化)" as RC
+participant "ImmunityInterceptor\n(由InterceptorDef实例化)" as IM
+participant "DamageModifierInterceptor\n(由InterceptorDef实例化)" as DM
+
+== 0) 准备：B 身上被施加“反制(反射)Buff”（数据驱动实例化拦截器） ==
+
+P2 -> Med: submit(AddBuffCommand(target=B, buffId="ReflectCounter"), Normal)
+Med -> Sch: push(AddBuffCommand, Normal)
+
+Med -> Sch: popNext()
+Sch --> Med: AddBuffCommand
+Med -> Proc: process(AddBuffCommand)
+
+Proc -> Pipe: evaluate(AddBuffCommand, hook=BeforeExecute)
+Pipe -> BuffSys: collectInterceptors(AddBuffCommand, BeforeExecute)
+BuffSys --> Pipe: []
+Pipe --> Proc: plan(cancelled=false, finalCmd=AddBuffCommand)
+
+Proc -> Proc: execute(AddBuffCommand)
+
+Proc -> Repo: loadBuffDef("ReflectCounter")
+Repo --> Proc: BuffDef{ duration, stacks, interceptorDefIds[...] }
+
+Proc -> Repo: loadInterceptorDefIds(...)
+Repo --> Proc: InterceptorDef{hook,stage,priority,conditions,decisions,commandTemplate}
+
+Proc -> BuffSys: registerBuffInstance(B,\nBuffDef + InterceptorDefs)
+note right of BuffSys
+运行时会把 InterceptorDef 实例化为 ICommandInterceptor：
+- stage/priority 来自数据
+- supports() 由 conditions 解释执行
+- intercept() 由 decisions/commandTemplate 解释执行
+end note
+
+== 1) A 出牌：PlayCardCommand 入队并执行，拆出效果命令 ==
+
+P1 -> Med: submit(PlayCardCommand(card=CardX, owner=A), Normal)
+Med -> Sch: push(PlayCardCommand, Normal)
+
+Med -> Sch: popNext()
+Sch --> Med: PlayCardCommand
+Med -> Proc: process(PlayCardCommand)
+
+Proc -> Pipe: evaluate(PlayCardCommand, hook=BeforeExecute)
+Pipe -> BuffSys: collectInterceptors(PlayCardCommand, BeforeExecute)
+BuffSys --> Pipe: []
+Pipe --> Proc: plan(cancelled=false, finalCmd=PlayCardCommand)
+
+Proc -> Proc: execute(PlayCardCommand)\n(扣费/校验/选目标=B)
+
+Proc -> Med: submit(ApplyEffectToTargetCommand(effect=E,\nsource=A,target=B,tags={}), Normal)
+Med -> Sch: push(ApplyEffectToTargetCommand, Normal)
+
+== 2) 执行效果命令：进入 Buff 拦截链（阶段/优先级/冲突合并） ==
+
+Med -> Sch: popNext()
+Sch --> Med: ApplyEffectToTargetCommand(A->B)
+Med -> Proc: process(ApplyEffectToTargetCommand)
+
+Proc -> Pipe: evaluate(cmd, hook=BeforeExecute)
+
+Pipe -> BuffSys: collectInterceptors(cmd, BeforeExecute)\n(从 target=B 身上取 Buff 拦截器)
+BuffSys --> Pipe: [IM, RC, DM]
+
+Pipe -> Arb: orderInterceptors([IM,RC,DM])\nkey=(stageOrder, prio DESC, buffAddSeq ASC)
+Arb --> Pipe: ordered=[IM, RC, DM]
+
+group Stage: Permission（是否允许发生）
+  Pipe -> IM: intercept(cmd)
+  alt B 免疫条件命中
+    IM --> Pipe: Decision(Cancel,"Immune")
+  else 未命中
+    IM --> Pipe: Decision(Continue)
+  end
+end
+
+alt Permission 阶段已 Cancel
+  Pipe -> Arb: mergeDecisions(cmd, decisions)
+  Arb --> Pipe: plan(cancelled=true, before=[], finalCmd=null)
+  Pipe --> Proc: plan(cancelled=true)
+  Proc -> Proc: skip execute(cmd)
+else 未被 Cancel
+  group Stage: Redirect（反制/反射/目标转移）
+    Pipe -> RC: intercept(cmd)
+
+    alt 不允许反射\n(uncounterable/unreflectable 或 tags含Reflected)
+      RC --> Pipe: Decision(Continue)
+    else 命中反制(反射)
+      RC --> Pipe: Decision(InjectBefore,\n before=[ReflectedCmd])\n+ Decision(Cancel)
+
+      note right of RC
+      ReflectedCmd 模板（来自 commandTemplate 数据）：
+      - new.source = old.target(B)
+      - new.target = old.source(A)
+      - new.effect = old.effect(E)
+      - new.tags += Reflected
+      - ScheduleHint = Immediate
+      end note
+    end
+  end
+
+  group Stage: Modify（数值修正，可叠加）
+    Pipe -> DM: intercept(cmd)
+    DM --> Pipe: Decision(Mutate)\n(例如对伤害/护盾字段 Add/Multiply 等)
+  end
+
+  Pipe -> Arb: mergeDecisions(cmd, decisions)\napplyMutations()
+  Arb --> Pipe: plan(cancelled=true,\n before=[ReflectedCmd], finalCmd=null)
+  Pipe --> Proc: plan
+
+  opt plan.before 非空（反射命令插队）
+    Proc -> Med: submit(ReflectedCmd, Immediate)
+    Med -> Sch: push(ReflectedCmd, Immediate)\n=> ImmediateStack
+  end
+
+  Proc -> Proc: skip execute(original cmd)\n(因为 Cancel)
+end
+
+== 3) 反射命令立即执行：同样走拦截链，但不再触发反射（防循环） ==
+
+Med -> Sch: popNext()
+Sch --> Med: ReflectedCmd(B->A, tags={Reflected})
+Med -> Proc: process(ReflectedCmd)
+
+Proc -> Pipe: evaluate(ReflectedCmd, hook=BeforeExecute)
+Pipe -> BuffSys: collectInterceptors(ReflectedCmd, BeforeExecute)\n(从 target=A 身上取 Buff)
+BuffSys --> Pipe: [可能有 IM/DM/其它]
+
+note right of Pipe
+关键：若 A 也有反射拦截器，其 supports() 条件会因为
+tags 包含 Reflected 而返回 false，从而避免无限反射。
+end note
+
+Pipe -> Arb: mergeDecisions()
+Arb --> Pipe: plan(cancelled=false, finalCmd=ReflectedCmd)
+Pipe --> Proc: plan(cancelled=false)
+
+Proc -> Proc: execute(ReflectedCmd)\n(效果 E 生效到 A)
+@enduml

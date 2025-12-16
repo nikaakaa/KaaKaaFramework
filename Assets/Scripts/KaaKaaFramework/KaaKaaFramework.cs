@@ -7,7 +7,6 @@ public interface IArchitecture
 {
 
 }
-
 public class Architecture<T> : IArchitecture where T : Architecture<T>,new()
 {
 
