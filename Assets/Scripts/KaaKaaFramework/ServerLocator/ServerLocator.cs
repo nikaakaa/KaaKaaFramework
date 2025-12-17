@@ -3,12 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class ServerLocator : BaseManager<ServerLocator>
+public static class ServerLocator
 {
-    private ServerLocator() { }
-
-    private Dictionary<Type, object> _services = new();
-    public void Register<T>(T serverInstance)
+    private static Dictionary<Type, object> _services = new();
+    public static void Register<T>(T serverInstance)
     {
         if(_services.ContainsKey(typeof(T)))
         {
@@ -17,7 +15,7 @@ public sealed class ServerLocator : BaseManager<ServerLocator>
         }
         _services.Add(typeof(T), serverInstance);
     }
-    public T Resolve<T>()
+    public static T Resolve<T>()
     {
         if(_services.TryGetValue(typeof(T), out var service))
         {
@@ -25,8 +23,7 @@ public sealed class ServerLocator : BaseManager<ServerLocator>
         }
         else
         {
-            Debug.Log($"没有注册{typeof(T)}服务");
-            return default;
+            throw new Exception($"没有注册类型为 {typeof(T)} 的服务");
         }
     }
 }
