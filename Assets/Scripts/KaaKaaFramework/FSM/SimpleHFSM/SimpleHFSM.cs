@@ -5,16 +5,16 @@ using UnityEngine;
 #region Core
 
 #region Transitions
-public abstract class Transition<T> 
+public abstract class Transition<T>
 {
-    public State<T> FromState{get;set;}
-    public State<T> ToState{get;set;}
-    public int Priority{get;set;}
+    public State<T> FromState { get; set; }
+    public State<T> ToState { get; set; }
+    public int Priority { get; set; }
     public abstract bool CanTransition(T ctx);
 }
 public class LambdaTransition<T> : Transition<T>
 {
-    private Func<T,bool> conditionFunc;
+    private Func<T, bool> conditionFunc;
     public LambdaTransition(State<T> from, State<T> to, Func<T, bool> condition, int priority = 0)
     {
         FromState = from;
@@ -31,25 +31,49 @@ public class LambdaTransition<T> : Transition<T>
 
 #region State
 
-public  abstract class State<T>
+public abstract class State<T>
 {
-    public string Name{get;set;}
+    public string Name { get; set; }
+    public ComposeState<T> Parent { get; set; }
+
     protected abstract void OnEnter(T ctx);
     protected abstract void OnExit(T ctx);
     protected abstract void OnUpdate(T ctx);
     public abstract void Enter(T ctx);
     public abstract void Exit(T ctx);
     public abstract void Update(T ctx);
+
+    /// <summary>
+    /// 子状态请求切换到兄弟状态
+    /// </summary>
+    protected void RequestTransition(State<T> target, T ctx)
+    {
+        Parent?.ChangeToTheSubState(target, ctx);
+    }
 }
 
 public class ComposeState<T> : State<T>
 {
-    public State<T> CurrentSubState{get;set;}
-    public Dictionary<string,State<T>> subStates = new();
+    public State<T> CurrentSubState { get; set; }
+
+    /// <summary>
+    /// 递归获取当前激活的叶子状态
+    /// </summary>
+    public State<T> CurrentLeafState
+    {
+        get
+        {
+            if (CurrentSubState is ComposeState<T> compose)
+                return compose.CurrentLeafState;
+            return CurrentSubState == null ? throw new Exception("CurrentSubState is null") : CurrentSubState;
+        }
+    }
+
+    public Dictionary<string, State<T>> subStates = new();
     public List<Transition<T>> transitions = new();
-    protected override void OnEnter(T ctx){}
-    protected override void OnExit(T ctx){}
-    protected override void OnUpdate(T ctx){}
+    protected override void OnEnter(T ctx) { }
+    protected override void OnExit(T ctx) { }
+    protected override void OnUpdate(T ctx) { }
     public sealed override void Enter(T ctx)
     {
         OnEnter(ctx);
@@ -63,19 +87,19 @@ public class ComposeState<T> : State<T>
     }
     public sealed override void Update(T ctx)
     {
-        if(TryTransitions(ctx))return;//这里可调,可以不return
+        if (TryTransitions(ctx)) return;//这里可调,可以不return
         OnUpdate(ctx);
         CurrentSubState?.Update(ctx);
     }
-    
+
     public bool TryTransitions(T ctx)
     {
-        foreach(var transition in transitions)
+        foreach (var transition in transitions)
         {
             // 只检查从当前状态出发的转换
-            if(transition.FromState != CurrentSubState) continue;
-                
-            if(transition.CanTransition(ctx))
+            if (transition.FromState != CurrentSubState) continue;
+
+            if (transition.CanTransition(ctx))
             {
                 ChangeToTheSubState(transition.ToState, ctx);
                 return true;
@@ -83,7 +107,7 @@ public class ComposeState<T> : State<T>
         }
         return false;
     }
-    public void ChangeToTheSubState(State<T> toState,T ctx)
+    public void ChangeToTheSubState(State<T> toState, T ctx)
     {
         CurrentSubState?.Exit(ctx);
         CurrentSubState = toState;
@@ -91,9 +115,10 @@ public class ComposeState<T> : State<T>
     }
     public ComposeState<T> RegisterSubState(State<T> state)
     {
-        if(!subStates.ContainsKey(state.Name))
+        if (!subStates.ContainsKey(state.Name))
         {
-            subStates.Add(state.Name,state);
+            subStates.Add(state.Name, state);
+            state.Parent = this;  // 设置父节点引用
             return this;
         }
         throw new Exception($"SubState with name {state.Name} already exists in ComposeState");
@@ -101,18 +126,18 @@ public class ComposeState<T> : State<T>
     public ComposeState<T> RegisterTransition(Transition<T> transition)
     {
         transitions.Add(transition);
-        transitions.Sort((a,b)=>b.Priority - a.Priority);
+        transitions.Sort((a, b) => b.Priority - a.Priority);
         return this;
     }
 }
 public class LeafState<T> : State<T>
 {
-    public sealed override void Enter(T ctx) =>OnEnter(ctx);
+    public sealed override void Enter(T ctx) => OnEnter(ctx);
     public sealed override void Exit(T ctx) => OnExit(ctx);
     public sealed override void Update(T ctx) => OnUpdate(ctx);
-    protected override void OnEnter(T ctx){}
-    protected override void OnExit(T ctx){}
-    protected override void OnUpdate(T ctx){}
+    protected override void OnEnter(T ctx) { }
+    protected override void OnExit(T ctx) { }
+    protected override void OnUpdate(T ctx) { }
 }
 
 public class LambdaLeafState<T> : LeafState<T>
@@ -120,17 +145,17 @@ public class LambdaLeafState<T> : LeafState<T>
     private Action<T> onEnter;
     private Action<T> onExit;
     private Action<T> onUpdate;
-    public LambdaLeafState(string name, Action<T> onEnter=null, Action<T> onExit=null, Action<T> onUpdate=null)
+    public LambdaLeafState(string name, Action<T> onEnter = null, Action<T> onExit = null, Action<T> onUpdate = null)
     {
         Name = name;
         this.onEnter = onEnter;
         this.onExit = onExit;
         this.onUpdate = onUpdate;
     }
-    
-    protected override void OnEnter(T ctx)=>onEnter?.Invoke(ctx);
-    protected override void OnExit(T ctx)=>onExit?.Invoke(ctx);
-    protected override void OnUpdate(T ctx)=>onUpdate?.Invoke(ctx);
+
+    protected override void OnEnter(T ctx) => onEnter?.Invoke(ctx);
+    protected override void OnExit(T ctx) => onExit?.Invoke(ctx);
+    protected override void OnUpdate(T ctx) => onUpdate?.Invoke(ctx);
 }
 public class LambdaComposeState<T> : ComposeState<T>
 {
@@ -145,9 +170,9 @@ public class LambdaComposeState<T> : ComposeState<T>
         this.onExit = onExit;
         this.onUpdate = onUpdate;
     }
-    protected override void OnEnter(T ctx)=>onEnter?.Invoke(ctx);
-    protected override void OnExit(T ctx)=>onExit?.Invoke(ctx);
-    protected override void OnUpdate(T ctx)=>onUpdate?.Invoke(ctx);
+    protected override void OnEnter(T ctx) => onEnter?.Invoke(ctx);
+    protected override void OnExit(T ctx) => onExit?.Invoke(ctx);
+    protected override void OnUpdate(T ctx) => onUpdate?.Invoke(ctx);
 }
 #endregion
 
